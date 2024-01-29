@@ -2,7 +2,7 @@ package interpreter
 
 import "errors"
 
-func getCharTokenType(char string) (uint, error) {
+func getCharTokenType(char string) (TokenType, error) {
 	switch char {
 	case ":":
 		return TokenColon, nil
@@ -52,7 +52,7 @@ func getCharTokenType(char string) (uint, error) {
 	return 0, errors.New("char provided is not a valid token")
 }
 
-func getLiteralTokenType(literal string) uint {
+func getLiteralTokenType(literal string) TokenType {
 	if literal == "true" {
 		return TokenTrue
 	} else if literal == "false" {

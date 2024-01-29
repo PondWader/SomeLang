@@ -45,6 +45,10 @@ func (e *Environment) NewChild(call Call) *Environment {
   return child
 }
 
+func (e *Environment) GetParent() *Environment {
+  return e.parent
+}
+
 func (e *Environment) GetCallStackOutput() string {
   output := "File, " + e.Call.File + ", Line, " + strconv.Itoa(e.Call.Line) + ", In " + e.Call.FunctionName
   if e.parent != nil {

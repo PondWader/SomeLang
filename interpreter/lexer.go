@@ -7,14 +7,16 @@ import (
 )
 
 type Token struct {
-	Type    uint
+	Type    TokenType
 	Literal string
 	Line    int
 }
 
+type TokenType uint
+
 const (
 	// Statements
-	TokenIfStatement uint = iota
+	TokenIfStatement TokenType = iota
 	TokenElseStatement
 	TokenFunctionDeclarationStatement
 	TokenClassDeclarationStatement
@@ -45,6 +47,7 @@ const (
 	TokenTypeFloat64
 	TokenTypeString
 	TokenTypeBool
+  TokenTypeMap
 
 	// Symbols
 	TokenColon
@@ -77,6 +80,10 @@ type Lexer struct {
 	content     string
 	cursor      int
 	currentLine int
+}
+
+func NewLexer(content string) *Lexer {
+  return &Lexer{content, 0, 1}
 }
 
 func (l *Lexer) Next() (Token, error) {
@@ -207,6 +214,6 @@ func (l *Lexer) readString() (string, error) {
 	return "", errors.New("reached EOF without string finishing")
 }
 
-func NewLexer(content string) *Lexer {
-	return &Lexer{content, 0, 1}
+func (l *Lexer) GetCurrentLine() int {
+  return l.currentLine
 }

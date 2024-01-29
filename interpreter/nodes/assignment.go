@@ -2,11 +2,11 @@ package nodes
 
 import "main/interpreter/environment"
 
-type KeyAccess struct {
+type Assignment struct {
 	Object Node
 	Key    string
 }
 
-func (ka *KeyAccess) Eval(env *environment.Environment) any {
+func (a *Assignment) Eval(env *environment.Environment) any {
 	return ka.Object.Eval(env).(map[string]any)[ka.Key]
 }

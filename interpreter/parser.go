@@ -21,7 +21,7 @@ func Parse(content string, filePath string) []nodes.Node {
 	p := &Parser{
 		lexer:          NewLexer(content),
 		filePath:       filePath,
-		currentTypeEnv: &environment.Environment{},
+		currentTypeEnv: environment.New(nil, environment.Call{}),
 	}
 	ast := make([]nodes.Node, 0)
 	for {
@@ -100,47 +100,59 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node) nodes.Node {
 	case TokenEquals:
 		p.lexer.Next()
 		nextToken := p.lexer.PeekOrExit()
+		// Check if the expression is a comparison, otherwise it's an assignment expression
 		if nextToken.Type == TokenEquals {
 
+		}
+
+		newVal, newType := p.ParseValue()
+		if _, ok := value.(*nodes.Identifier); ok {
+
+		} else if _, ok := value.(*nodes.KeyAccess); ok {
+
+		} else {
+			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
 		}
 	}
 	return value
 }
 
-func (p *Parser) ParseValue() (nodes.Node, ScriptType) {
+func (p *Parser) ParseValue() (nodes.Node, TypeDef) {
 	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse)
 	switch token.Type {
 	case TokenString:
-		return &nodes.Value{Value: token.Literal}, ScriptType{GenericType: TypeString}
+		return &nodes.Value{Value: token.Literal}, GenericTypeDef{TypeString}
 	case TokenTrue:
-		return &nodes.Value{Value: true}, ScriptType{GenericType: TypeBool}
+		return &nodes.Value{Value: true}, GenericTypeDef{TypeBool}
 	case TokenFalse:
-		return &nodes.Value{Value: false}, ScriptType{GenericType: TypeBool}
+		return &nodes.Value{Value: false}, GenericTypeDef{TypeBool}
 	case TokenNumber:
 		// Check for decimal point
 		if p.lexer.PeekOrExit().Type == TokenPeriod {
 			p.lexer.Next()
 			decimalNum := p.ExpectToken(TokenNumber)
 			val, _ := strconv.ParseFloat(token.Literal+"."+decimalNum.Literal, 64)
-			return &nodes.Value{Value: val}, ScriptType{GenericType: TypeFloat64}
+			return &nodes.Value{Value: val}, GenericTypeDef{TypeFloat64}
 		}
 		val, _ := strconv.ParseInt(token.Literal, 10, 64)
-		return &nodes.Value{Value: val}, ScriptType{GenericType: TypeInt64}
+		return &nodes.Value{Value: val}, GenericTypeDef{TypeInt64}
 	case TokenIdentifier:
-		identValueType, ok := p.currentTypeEnv.Get(token.Literal).(ScriptType)
+		identValueType, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope")
 		}
 		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}), identValueType
 	}
-	return nil, ScriptType{}
+	return nil, nil
 }
 
 func (p *Parser) ParseVarDeclaration() nodes.Node {
 	token := p.ExpectToken(TokenIdentifier)
 	identifier := token.Literal
 	p.ExpectToken(TokenEquals)
-	valNode, _ := p.ParseValue()
+	valNode, valType := p.ParseValue()
+
+	p.currentTypeEnv.Set(identifier, valType)
 
 	return &nodes.VarDeclaration{
 		Identifier: identifier,
@@ -149,34 +161,40 @@ func (p *Parser) ParseVarDeclaration() nodes.Node {
 }
 
 func (p *Parser) ParseFunctionDeclarationStatement() nodes.Node {
-	token := p.ExpectToken(TokenIdentifier)
-	p.ExpectToken(TokenLeftBracket)
-	args := make([]string, 0)
-	for {
-		token := p.ExpectToken(TokenIdentifier, TokenRightBracket)
-		if token.Type == TokenRightBracket {
-			break
-		}
-		args = append(args, token.Literal)
-		token = p.ExpectToken(TokenComma, TokenRightBracket)
-		if token.Type == TokenRightBracket {
-			break
-		}
+	funcName, args, returnType := p.ParseFunctionDef()
+
+	inner := p.ParseBlock(args)
+
+	argNames := make([]string, len(args))
+	i := 0
+	for name, _ := range args {
+		argNames[i] = name
+		i++
 	}
 
-	inner := p.ParseBlock()
+	p.currentTypeEnv.Set(funcName, FuncDef{
+		GenericTypeDef{TypeFunc},
+		args,
+		returnType,
+	})
 
 	return &nodes.FuncDeclaration{
-		Name:     token.Literal,
-		ArgNames: args,
+		Name:     funcName,
+		ArgNames: argNames,
 		Inner:    inner,
-		Line:     p.lexer.currentLine,
+		Line:     p.lexer.GetCurrentLine(),
 	}
 }
 
-func (p *Parser) ParseBlock() []nodes.Node {
+func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef) []nodes.Node {
 	ast := make([]nodes.Node, 0)
 	p.ExpectToken(TokenLeftBrace)
+
+	p.currentTypeEnv = p.currentTypeEnv.NewChild(environment.Call{})
+	for name, valType := range scopedVariables {
+		p.currentTypeEnv.Set(name, valType)
+	}
+
 	for {
 		token := p.ParseNext(true)
 		if token == nil {
@@ -185,29 +203,30 @@ func (p *Parser) ParseBlock() []nodes.Node {
 		ast = append(ast, token)
 	}
 
+	p.currentTypeEnv = p.currentTypeEnv.GetParent()
 	return ast
 }
 
-func (p *Parser) ExpectToken(tokenType ...uint) Token {
+func (p *Parser) ExpectToken(tokenType ...TokenType) Token {
 	token := p.lexer.NextOrExit()
 	for _, allowedType := range tokenType {
 		if token.Type == allowedType {
 			return token
 		}
 	}
-	p.ThrowSyntaxError("Unexpected token type \"", token.Literal, "\".")
+	p.ThrowSyntaxError("Unexpected token \"", token.Literal, "\".")
 	return Token{}
 }
 
 func (p *Parser) ThrowSyntaxError(msg ...any) {
-	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Syntax error at line "+fmt.Sprint(p.lexer.currentLine)+":"))
+	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Syntax error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
 	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))
 	fmt.Println(" ", aurora.Gray(18, "in "+p.filePath))
 	os.Exit(1)
 }
 
 func (p *Parser) ThrowTypeError(msg ...any) {
-	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Type error at line "+fmt.Sprint(p.lexer.currentLine)+":"))
+	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Type error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
 	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))
 	fmt.Println(" ", aurora.Gray(18, "in "+p.filePath))
 	os.Exit(1)
