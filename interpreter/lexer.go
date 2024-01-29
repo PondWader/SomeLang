@@ -1,0 +1,212 @@
+package interpreter
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+type Token struct {
+	Type    uint
+	Literal string
+	Line    int
+}
+
+const (
+	// Statements
+	TokenIfStatement uint = iota
+	TokenElseStatement
+	TokenFunctionDeclarationStatement
+	TokenClassDeclarationStatement
+	TokenImportStatement
+	TokenExportStatement
+	TokenForStatement
+	TokenVarDeclaration
+
+	// Values
+	TokenTrue
+	TokenFalse
+	TokenString
+	TokenNumber
+	TokenIdentifier
+
+	// Types
+	TokenTypeInt8
+	TokenTypeInt16
+	TokenTypeInt32
+	TokenTypeInt48
+	TokenTypeInt64
+	TokenTypeUint8
+	TokenTypeUint16
+	TokenTypeUint32
+	TokenTypeUint48
+	TokenTypeUint64
+	TokenTypeFloat32
+	TokenTypeFloat64
+	TokenTypeString
+	TokenTypeBool
+
+	// Symbols
+	TokenColon
+	TokenSemiColon
+	TokenNewLine
+	TokenComma
+	TokenLeftBracket
+	TokenRightBracket
+	TokenLeftBrace
+	TokenRightBrace
+	TokenLeftSquareBracket
+	TokenRightSquareBracket
+	TokenAsterisk
+	TokenPlus
+	TokenDash
+	TokenForwardSlash
+	TokenAmpersand
+	TokenBar
+	TokenApostrophe
+	TokenExclamationMark
+	TokenEquals
+	TokenGreaterThan
+	TokenLessThan
+	TokenPeriod
+
+	TokenEOF
+)
+
+type Lexer struct {
+	content     string
+	cursor      int
+	currentLine int
+}
+
+func (l *Lexer) Next() (Token, error) {
+	currentStr := ""
+	for l.cursor < len(l.content) {
+		ch := l.content[l.cursor : l.cursor+1]
+		l.cursor++
+
+		if ch == " " || ch == "	" {
+			continue
+		}
+
+		if token, err := getCharTokenType(ch); err == nil {
+			if token == TokenNewLine {
+				l.currentLine++
+			}
+			return Token{
+				Type:    token,
+				Literal: ch,
+				Line:    l.currentLine,
+			}, nil
+		}
+
+		if ch == "\"" {
+			strContent, err := l.readString()
+			if err != nil {
+				return Token{}, err
+			}
+			return Token{
+				Type:    TokenString,
+				Literal: strContent,
+				Line:    l.currentLine,
+			}, nil
+		}
+
+		currentStr += ch
+		var endOfToken bool
+		if l.cursor >= len(l.content) {
+			endOfToken = true
+		} else {
+			nextCh := l.content[l.cursor : l.cursor+1]
+			if nextCh == "" || nextCh == " " || nextCh == "\n" || nextCh == "	" || nextCh == "\"" {
+				endOfToken = true
+			} else if _, err := getCharTokenType(nextCh); err == nil {
+				endOfToken = true
+			}
+		}
+
+		if endOfToken {
+			return Token{
+				Type:    getLiteralTokenType(currentStr),
+				Literal: currentStr,
+				Line:    l.currentLine,
+			}, nil
+		}
+	}
+
+	return Token{
+		Type:    TokenEOF,
+		Literal: "EOF",
+		Line:    l.currentLine,
+	}, nil
+}
+
+func (l *Lexer) Peek() (Token, error) {
+	originalPos := l.cursor
+	originalLine := l.currentLine
+	token, err := l.Next()
+	l.cursor = originalPos
+	l.currentLine = originalLine
+	return token, err
+}
+
+func (l *Lexer) PeekOrExit() Token {
+	token, err := l.Peek()
+	if err != nil {
+		fmt.Println(err, fmt.Sprint(l.currentLine)+":"+fmt.Sprint(l.cursor))
+		os.Exit(1)
+	}
+	return token
+}
+
+func (l *Lexer) NextOrExit() Token {
+	token, err := l.Next()
+	if err != nil {
+		fmt.Println(err, fmt.Sprint(l.currentLine)+":"+fmt.Sprint(l.cursor))
+		os.Exit(1)
+	}
+	return token
+}
+
+func (l *Lexer) readString() (string, error) {
+	currentStr := ""
+	escapedChar := false
+	for l.cursor < len(l.content) {
+		char := l.content[l.cursor : l.cursor+1]
+		l.cursor++
+
+		if char == "\\" && !escapedChar {
+			escapedChar = true
+			continue
+		}
+		if escapedChar {
+			switch char {
+			case "\"":
+				return currentStr, nil
+			case "n":
+				currentStr += "\n"
+			case "t":
+				currentStr += "\t"
+			case "r":
+				currentStr += "\r"
+			default:
+				currentStr += char
+			}
+			escapedChar = false
+		} else {
+			if char == "\"" {
+				return currentStr, nil
+			}
+			currentStr += char
+		}
+		if char == "\n" {
+			return "", errors.New("unexpected newline while reading string literal")
+		}
+	}
+
+	return "", errors.New("reached EOF without string finishing")
+}
+
+func NewLexer(content string) *Lexer {
+	return &Lexer{content, 0, 1}
+}
