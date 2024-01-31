@@ -26,11 +26,11 @@ func (p *Parser) ParseFunctionDef() (name string, args map[string]TypeDef, retur
 
 func (p *Parser) ParseTypeDef() TypeDef {
 	// Expect a token of a type
-	token := p.ExpectToken(TokenTypeInt8, TokenTypeInt16, TokenTypeInt32, TokenTypeInt48, TokenTypeInt64, TokenTypeUint8, TokenTypeUint16, TokenTypeUint32, TokenTypeUint48, TokenTypeUint64, TokenTypeFloat32, TokenTypeFloat64, TokenTypeString, TokenTypeBool, TokenTypeMap, TokenFunctionDeclarationStatement)
+	token := p.ExpectToken(TokenTypeInt8, TokenTypeInt16, TokenTypeInt32, TokenTypeInt48, TokenTypeInt64, TokenTypeUint8, TokenTypeUint16, TokenTypeUint32, TokenTypeUint48, TokenTypeUint64, TokenTypeFloat32, TokenTypeFloat64, TokenTypeString, TokenTypeBool, TokenTypeMap, TokenFunctionDeclaration)
 
 	var typeDef TypeDef
 	switch token.Type {
-	case TokenFunctionDeclarationStatement:
+	case TokenFunctionDeclaration:
 		_, args, returnType := p.ParseFunctionDef()
 		typeDef = FuncDef{
 			GenericTypeDef{TypeFunc},
@@ -100,8 +100,8 @@ func TypeTokenToPrimitiveType(token Token) GenericType {
 		return TypeFloat64
 	case TokenTypeBool:
 		return TypeBool
-  case TokenTypeString:
-    return TypeString
+	case TokenTypeString:
+		return TypeString
 	}
 
 	return 0

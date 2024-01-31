@@ -18,7 +18,7 @@ const (
 	// Statements
 	TokenIfStatement TokenType = iota
 	TokenElseStatement
-	TokenFunctionDeclarationStatement
+	TokenFunctionDeclaration
 	TokenClassDeclarationStatement
 	TokenImportStatement
 	TokenExportStatement
@@ -47,7 +47,7 @@ const (
 	TokenTypeFloat64
 	TokenTypeString
 	TokenTypeBool
-  TokenTypeMap
+	TokenTypeMap
 
 	// Symbols
 	TokenColon
@@ -83,7 +83,7 @@ type Lexer struct {
 }
 
 func NewLexer(content string) *Lexer {
-  return &Lexer{content, 0, 1}
+	return &Lexer{content, 0, 1}
 }
 
 func (l *Lexer) Next() (Token, error) {
@@ -215,5 +215,5 @@ func (l *Lexer) readString() (string, error) {
 }
 
 func (l *Lexer) GetCurrentLine() int {
-  return l.currentLine
+	return l.currentLine
 }

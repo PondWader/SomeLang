@@ -66,7 +66,7 @@ func getLiteralTokenType(literal string) TokenType {
 	case "else":
 		return TokenElseStatement
 	case "fn":
-		return TokenFunctionDeclarationStatement
+		return TokenFunctionDeclaration
 	case "class":
 		return TokenClassDeclarationStatement
 	case "import":

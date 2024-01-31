@@ -23,7 +23,7 @@ func Parse(content string, filePath string) []nodes.Node {
 		filePath:       filePath,
 		currentTypeEnv: environment.New(nil, environment.Call{}),
 	}
-	ast := make([]nodes.Node, 0)  
+	ast := make([]nodes.Node, 0)
 	for {
 		node := p.ParseNext(false)
 		if node == nil {
@@ -56,8 +56,8 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 	switch token.Type {
 	case TokenVarDeclaration:
 		return p.ParseVarDeclaration()
-	case TokenFunctionDeclarationStatement:
-		return p.ParseFunctionDeclarationStatement()
+	case TokenFunctionDeclaration:
+		return p.ParseFunctionDeclaration()
 	case TokenIdentifier:
 		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal})
 	case TokenEOF:
@@ -107,15 +107,15 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node) nodes.Node {
 
 		newVal, newType := p.ParseValue()
 		if ident, ok := value.(*nodes.Identifier); ok {
-      identType := p.currentTypeEnv.Get(ident.Name).(TypeDef)
-      if !identType.Equals(newType) {
-        p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
-      }
-      
-      return &nodes.Assignment{
-        Identifier: ident.Name,
-        NewValue: newVal,
-      }
+			identType := p.currentTypeEnv.Get(ident.Name).(TypeDef)
+			if !identType.Equals(newType) {
+				p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
+			}
+
+			return &nodes.Assignment{
+				Identifier: ident.Name,
+				NewValue:   newVal,
+			}
 		} else if _, ok := value.(*nodes.KeyAccess); ok {
 
 		} else {
@@ -168,14 +168,14 @@ func (p *Parser) ParseVarDeclaration() nodes.Node {
 	}
 }
 
-func (p *Parser) ParseFunctionDeclarationStatement() nodes.Node {
+func (p *Parser) ParseFunctionDeclaration() nodes.Node {
 	funcName, args, returnType := p.ParseFunctionDef()
 
 	inner := p.ParseBlock(args)
 
 	argNames := make([]string, len(args))
 	i := 0
-	for name, _ := range args {
+	for name := range args {
 		argNames[i] = name
 		i++
 	}
