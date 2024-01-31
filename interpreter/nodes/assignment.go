@@ -3,10 +3,12 @@ package nodes
 import "main/interpreter/environment"
 
 type Assignment struct {
-	Object Node
-	Key    string
+	Identifier string
+	NewValue   Node
 }
 
 func (a *Assignment) Eval(env *environment.Environment) any {
-	return ka.Object.Eval(env).(map[string]any)[ka.Key]
+  newVal := a.NewValue.Eval(env)
+	env.Set(a.Identifier, newVal)
+  return newVal 
 }

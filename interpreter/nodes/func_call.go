@@ -17,5 +17,9 @@ func (fc *FuncCall) Eval(env *environment.Environment) any {
     args[i] = reflect.ValueOf(arg.Eval(env))
   }
   out := v.Call(args)
-  return out[0].Interface()
+  if len(out) > 0 {
+    return out[0].Interface()
+  } else {
+    return nil
+  }
 }

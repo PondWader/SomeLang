@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"main/interpreter"
-	"main/interpreter/nodes"
+	standardlibrary "main/standard_library"
 	"os"
 	"path/filepath"
 )
@@ -24,12 +24,10 @@ func main() {
   if err != nil {
     fmt.Println("Error reading entry point file:", err)
   }
+  
 	ast := interpreter.Parse(string(content), *entryPoint)
-  for _, node := range ast {
-    n, ok := node.(*nodes.FuncCall)
-    if ok {
-      fmt.Println(n.Args)
-      fmt.Println(n)
-    }
-  }
+  interpreter.Execute(ast, *entryPoint, map[string]any{
+    "print": standardlibrary.Print,
+    "input": standardlibrary.Input,
+  })
 }

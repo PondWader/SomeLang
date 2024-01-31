@@ -33,7 +33,7 @@ func (p *Parser) ParseTypeDef() TypeDef {
 	case TokenFunctionDeclarationStatement:
 		_, args, returnType := p.ParseFunctionDef()
 		typeDef = FuncDef{
-			GenericTypeDef{TypeMap},
+			GenericTypeDef{TypeFunc},
 			args,
 			returnType,
 		}
@@ -49,24 +49,25 @@ func (p *Parser) ParseTypeDef() TypeDef {
 			keyType,
 			valueType,
 		}
+
+	default:
+		typeDef = GenericTypeDef{
+			Type: TypeTokenToPrimitiveType(token),
+		}
 	}
 
-	typeDef = GenericTypeDef{
-		Type: TypeTokenToPrimitiveType(token),
+	// Check for array (type followed by [])
+	token = p.lexer.PeekOrExit()
+	if token.Type == TokenLeftSquareBracket {
+		p.lexer.Next()
+		p.ExpectToken(TokenRightSquareBracket)
+		return ArrayDef{
+			GenericTypeDef{TypeArray},
+			typeDef,
+		}
 	}
 
-  // Check for array (type followed by [])
-  token = p.lexer.PeekOrExit()
-  if token.Type == TokenLeftSquareBracket {
-    p.lexer.Next()
-    p.ExpectToken(TokenRightSquareBracket)
-    return ArrayDef{
-      GenericTypeDef{TypeArray},
-      typeDef,
-    }
-  }
-  
-  return typeDef
+	return typeDef
 }
 
 // A function that converts a token for a type (such as "int8") to it's corresponding type code
@@ -99,6 +100,8 @@ func TypeTokenToPrimitiveType(token Token) GenericType {
 		return TypeFloat64
 	case TokenTypeBool:
 		return TypeBool
+  case TokenTypeString:
+    return TypeString
 	}
 
 	return 0

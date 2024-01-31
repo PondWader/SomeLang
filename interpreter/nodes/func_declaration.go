@@ -5,7 +5,7 @@ import "main/interpreter/environment"
 type FuncDeclaration struct {
 	Name     string
   Line     int
-	Inner    []Node
+	Inner    *Block
 	ArgNames []string
 }
 
@@ -17,10 +17,16 @@ func (fd *FuncDeclaration) Eval(env *environment.Environment) any {
       Line: fd.Line,
     })
 
+    for i, arg := range args {
+      innerEnv.Set(fd.ArgNames[i], arg)
+    }
+
     var returnVal any
     innerEnv.Return = func(v any) {
       returnVal = v
     }
+
+    fd.Inner.Eval(innerEnv)
 
     return returnVal
   }

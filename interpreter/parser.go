@@ -23,7 +23,7 @@ func Parse(content string, filePath string) []nodes.Node {
 		filePath:       filePath,
 		currentTypeEnv: environment.New(nil, environment.Call{}),
 	}
-	ast := make([]nodes.Node, 0)
+	ast := make([]nodes.Node, 0)  
 	for {
 		node := p.ParseNext(false)
 		if node == nil {
@@ -106,8 +106,16 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node) nodes.Node {
 		}
 
 		newVal, newType := p.ParseValue()
-		if _, ok := value.(*nodes.Identifier); ok {
-
+		if ident, ok := value.(*nodes.Identifier); ok {
+      identType := p.currentTypeEnv.Get(ident.Name).(TypeDef)
+      if !identType.Equals(newType) {
+        p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
+      }
+      
+      return &nodes.Assignment{
+        Identifier: ident.Name,
+        NewValue: newVal,
+      }
 		} else if _, ok := value.(*nodes.KeyAccess); ok {
 
 		} else {
@@ -139,7 +147,7 @@ func (p *Parser) ParseValue() (nodes.Node, TypeDef) {
 	case TokenIdentifier:
 		identValueType, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
-			p.ThrowTypeError(token.Literal, " is not defined in this scope")
+			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
 		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}), identValueType
 	}
@@ -186,7 +194,7 @@ func (p *Parser) ParseFunctionDeclarationStatement() nodes.Node {
 	}
 }
 
-func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef) []nodes.Node {
+func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef) *nodes.Block {
 	ast := make([]nodes.Node, 0)
 	p.ExpectToken(TokenLeftBrace)
 
@@ -204,7 +212,7 @@ func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef) []nodes.Node {
 	}
 
 	p.currentTypeEnv = p.currentTypeEnv.GetParent()
-	return ast
+	return &nodes.Block{Nodes: ast}
 }
 
 func (p *Parser) ExpectToken(tokenType ...TokenType) Token {
