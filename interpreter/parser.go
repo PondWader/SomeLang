@@ -59,6 +59,10 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 	case TokenFunctionDeclaration:
 		return p.ParseFunctionDeclaration()
 	case TokenIdentifier:
+		_, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
+		if !ok {
+			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
+		}
 		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal})
 	case TokenEOF:
 		return nil
@@ -145,11 +149,11 @@ func (p *Parser) ParseValue() (nodes.Node, TypeDef) {
 		val, _ := strconv.ParseInt(token.Literal, 10, 64)
 		return &nodes.Value{Value: val}, GenericTypeDef{TypeInt64}
 	case TokenIdentifier:
-		identValueType, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
+		_, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
-		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}), identValueType
+		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}), GenericTypeDef{}
 	}
 	return nil, nil
 }
