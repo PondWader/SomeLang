@@ -139,17 +139,16 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (n
 
 		}
 
-		newVal, newType := p.ParseValue(TypeNil)
 		if ident, ok := value.(*nodes.Identifier); ok {
-			identType := p.currentTypeEnv.Get(ident.Name).(TypeDef)
-			if !identType.Equals(newType) {
+			newVal, newValDef := p.ParseValue(def.GetGenericType())
+			if !def.Equals(newValDef) {
 				p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
 			}
 
 			return &nodes.Assignment{
 				Identifier: ident.Name,
 				NewValue:   newVal,
-			}, newType
+			}, def
 		} else if _, ok := value.(*nodes.KeyAccess); ok {
 
 		} else {
@@ -198,8 +197,16 @@ func (p *Parser) ParseValue(implicitType GenericType) (nodes.Node, TypeDef) {
 func (p *Parser) ParseVarDeclaration() nodes.Node {
 	token := p.ExpectToken(TokenIdentifier)
 	identifier := token.Literal
-	p.ExpectToken(TokenEquals)
-	valNode, valType := p.ParseValue(TypeNil)
+
+	token = p.lexer.NextOrExit()
+	genericType := TypeNil
+	if token.Type != TokenEquals {
+		p.lexer.Unread(token) // Unread token so it can be parsed as the type
+		genericType = p.ParseTypeDef().GetGenericType()
+		p.ExpectToken(TokenEquals)
+	}
+
+	valNode, valType := p.ParseValue(genericType)
 
 	p.currentTypeEnv.Set(identifier, valType)
 
