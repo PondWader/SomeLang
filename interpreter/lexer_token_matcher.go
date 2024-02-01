@@ -85,8 +85,6 @@ func getLiteralTokenType(literal string) TokenType {
 		return TokenTypeInt16
 	case "int32":
 		return TokenTypeInt32
-	case "int48":
-		return TokenTypeInt48
 	case "int64":
 		return TokenTypeInt64
 	case "uint8":
@@ -95,8 +93,6 @@ func getLiteralTokenType(literal string) TokenType {
 		return TokenTypeUint16
 	case "uint32":
 		return TokenTypeUint32
-	case "uint48":
-		return TokenTypeUint48
 	case "uint64":
 		return TokenTypeUint64
 	case "string":

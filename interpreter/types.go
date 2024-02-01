@@ -6,12 +6,10 @@ const (
 	TypeInt8 GenericType = iota
 	TypeInt16
 	TypeInt32
-	TypeInt48
 	TypeInt64
 	TypeUint8
 	TypeUint16
 	TypeUint32
-	TypeUint48
 	TypeUint64
 	TypeFloat32
 	TypeFloat64
@@ -20,6 +18,8 @@ const (
 	TypeMap
 	TypeFunc
 	TypeArray
+
+	TypeNil
 )
 
 type TypeDef interface {

@@ -36,12 +36,10 @@ const (
 	TokenTypeInt8
 	TokenTypeInt16
 	TokenTypeInt32
-	TokenTypeInt48
 	TokenTypeInt64
 	TokenTypeUint8
 	TokenTypeUint16
 	TokenTypeUint32
-	TokenTypeUint48
 	TokenTypeUint64
 	TokenTypeFloat32
 	TokenTypeFloat64

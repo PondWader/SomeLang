@@ -108,7 +108,7 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (n
 				p.ThrowTypeError("Too many arguments passed to function.")
 			}
 
-			val, valDef := p.ParseValue()
+			val, valDef := p.ParseValue(funcDef.Args[i].GetGenericType())
 			if !valDef.Equals(funcDef.Args[i]) {
 				p.ThrowTypeError("Incorrect type passed for argument ", i+1, " of function call.")
 			}
@@ -139,7 +139,7 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (n
 
 		}
 
-		newVal, newType := p.ParseValue()
+		newVal, newType := p.ParseValue(TypeNil)
 		if ident, ok := value.(*nodes.Identifier); ok {
 			identType := p.currentTypeEnv.Get(ident.Name).(TypeDef)
 			if !identType.Equals(newType) {
@@ -159,7 +159,7 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (n
 	return value, def
 }
 
-func (p *Parser) ParseValue() (nodes.Node, TypeDef) {
+func (p *Parser) ParseValue(implicitType GenericType) (nodes.Node, TypeDef) {
 	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse)
 	switch token.Type {
 	case TokenString:
@@ -169,14 +169,21 @@ func (p *Parser) ParseValue() (nodes.Node, TypeDef) {
 	case TokenFalse:
 		return &nodes.Value{Value: false}, GenericTypeDef{TypeBool}
 	case TokenNumber:
-		// Check for decimal point
+		// Check for decimal point, in which case it's a float
 		if p.lexer.PeekOrExit().Type == TokenPeriod {
 			p.lexer.Next()
 			decimalNum := p.ExpectToken(TokenNumber)
 			val, _ := strconv.ParseFloat(token.Literal+"."+decimalNum.Literal, 64)
+			if implicitVal := ConvertFloat64ToTypeDef(val, implicitType); implicitVal != nil {
+				return &nodes.Value{Value: implicitVal}, GenericTypeDef{implicitType}
+			}
 			return &nodes.Value{Value: val}, GenericTypeDef{TypeFloat64}
 		}
 		val, _ := strconv.ParseInt(token.Literal, 10, 64)
+
+		if implicitVal := ConvertInt64ToTypeDef(val, implicitType); implicitVal != nil {
+			return &nodes.Value{Value: implicitVal}, GenericTypeDef{implicitType}
+		}
 		return &nodes.Value{Value: val}, GenericTypeDef{TypeInt64}
 	case TokenIdentifier:
 		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
@@ -192,7 +199,7 @@ func (p *Parser) ParseVarDeclaration() nodes.Node {
 	token := p.ExpectToken(TokenIdentifier)
 	identifier := token.Literal
 	p.ExpectToken(TokenEquals)
-	valNode, valType := p.ParseValue()
+	valNode, valType := p.ParseValue(TypeNil)
 
 	p.currentTypeEnv.Set(identifier, valType)
 
