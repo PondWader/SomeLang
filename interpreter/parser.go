@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"fmt"
-	"main/interpreter/environment"
 	"main/interpreter/nodes"
 	"os"
 	"strconv"
@@ -13,7 +12,7 @@ import (
 type Parser struct {
 	lexer          *Lexer
 	filePath       string
-	currentTypeEnv *environment.Environment
+	currentTypeEnv *TypeEnvironment
 }
 
 // Creates abstract syntax tree
@@ -21,7 +20,7 @@ func Parse(content string, filePath string) []nodes.Node {
 	p := &Parser{
 		lexer:          NewLexer(content),
 		filePath:       filePath,
-		currentTypeEnv: environment.New(nil, environment.Call{}),
+		currentTypeEnv: NewTypeEnvironment(nil, nil),
 	}
 	ast := make([]nodes.Node, 0)
 	for {
@@ -79,6 +78,19 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 		}
 		node, _ := p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
 		return node
+	case TokenReturnStatement:
+		if p.currentTypeEnv.ReturnType == nil {
+			p.ThrowSyntaxError("You cannot use a return statement outside of a function with a defined return type.")
+		}
+
+		returnValue, returnValueDef := p.ParseValue(p.currentTypeEnv.ReturnType)
+		if !returnValueDef.Equals(p.currentTypeEnv.ReturnType) {
+			p.ThrowTypeError("Incorrect type of value returned.")
+		}
+		p.currentTypeEnv.Returned = true
+		return &nodes.Return{
+			Value: returnValue,
+		}
 	case TokenEOF:
 		return nil
 	default:
@@ -232,7 +244,7 @@ func (p *Parser) ParseFunctionDeclaration() nodes.Node {
 	for i, name := range argNames {
 		args[name] = argDefs[i]
 	}
-	inner := p.ParseBlock(args)
+	inner := p.ParseBlock(args, returnType)
 
 	return &nodes.FuncDeclaration{
 		Name:     funcName,
@@ -242,11 +254,11 @@ func (p *Parser) ParseFunctionDeclaration() nodes.Node {
 	}
 }
 
-func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef) *nodes.Block {
+func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef, returnType TypeDef) *nodes.Block {
 	ast := make([]nodes.Node, 0)
 	p.ExpectToken(TokenLeftBrace)
 
-	p.currentTypeEnv = p.currentTypeEnv.NewChild(environment.Call{})
+	p.currentTypeEnv = p.currentTypeEnv.NewChild(returnType)
 	for name, valType := range scopedVariables {
 		p.currentTypeEnv.Set(name, valType)
 	}
@@ -257,6 +269,10 @@ func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef) *nodes.Block {
 			break
 		}
 		ast = append(ast, token)
+	}
+
+	if returnType != nil && !p.currentTypeEnv.Returned {
+		p.ThrowTypeError("The function is missing a return statement.")
 	}
 
 	p.currentTypeEnv = p.currentTypeEnv.GetParent()

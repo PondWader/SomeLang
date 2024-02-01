@@ -22,8 +22,12 @@ func (p *Parser) ParseFunctionDef() (name string, argDefs []TypeDef, argNames []
 		}
 	}
 
-	p.ExpectToken(TokenColon)
-	returnType = p.ParseTypeDef()
+	token := p.lexer.NextOrExit()
+	if token.Type == TokenColon {
+		returnType = p.ParseTypeDef()
+	} else {
+		p.lexer.Unread(token)
+	}
 	return
 }
 

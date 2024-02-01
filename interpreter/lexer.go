@@ -19,11 +19,12 @@ const (
 	TokenIfStatement TokenType = iota
 	TokenElseStatement
 	TokenFunctionDeclaration
-	TokenClassDeclarationStatement
+	TokenClassDeclaration
 	TokenImportStatement
 	TokenExportStatement
 	TokenForStatement
 	TokenVarDeclaration
+	TokenReturnStatement
 
 	// Values
 	TokenTrue
