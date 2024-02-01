@@ -108,7 +108,7 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (n
 				p.ThrowTypeError("Too many arguments passed to function.")
 			}
 
-			val, valDef := p.ParseValue(funcDef.Args[i].GetGenericType())
+			val, valDef := p.ParseValue(funcDef.Args[i])
 			if !valDef.Equals(funcDef.Args[i]) {
 				p.ThrowTypeError("Incorrect type passed for argument ", i+1, " of function call.")
 			}
@@ -140,7 +140,7 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (n
 		}
 
 		if ident, ok := value.(*nodes.Identifier); ok {
-			newVal, newValDef := p.ParseValue(def.GetGenericType())
+			newVal, newValDef := p.ParseValue(def)
 			if !def.Equals(newValDef) {
 				p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
 			}
@@ -158,7 +158,7 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (n
 	return value, def
 }
 
-func (p *Parser) ParseValue(implicitType GenericType) (nodes.Node, TypeDef) {
+func (p *Parser) ParseValue(implicitType TypeDef) (nodes.Node, TypeDef) {
 	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse)
 	switch token.Type {
 	case TokenString:
@@ -173,15 +173,15 @@ func (p *Parser) ParseValue(implicitType GenericType) (nodes.Node, TypeDef) {
 			p.lexer.Next()
 			decimalNum := p.ExpectToken(TokenNumber)
 			val, _ := strconv.ParseFloat(token.Literal+"."+decimalNum.Literal, 64)
-			if implicitVal := ConvertFloat64ToTypeDef(val, implicitType); implicitVal != nil {
-				return &nodes.Value{Value: implicitVal}, GenericTypeDef{implicitType}
+			if implicitVal := ConvertFloat64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
+				return &nodes.Value{Value: implicitVal}, implicitType
 			}
 			return &nodes.Value{Value: val}, GenericTypeDef{TypeFloat64}
 		}
 		val, _ := strconv.ParseInt(token.Literal, 10, 64)
 
-		if implicitVal := ConvertInt64ToTypeDef(val, implicitType); implicitVal != nil {
-			return &nodes.Value{Value: implicitVal}, GenericTypeDef{implicitType}
+		if implicitVal := ConvertInt64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
+			return &nodes.Value{Value: implicitVal}, implicitType
 		}
 		return &nodes.Value{Value: val}, GenericTypeDef{TypeInt64}
 	case TokenIdentifier:
@@ -199,14 +199,17 @@ func (p *Parser) ParseVarDeclaration() nodes.Node {
 	identifier := token.Literal
 
 	token = p.lexer.NextOrExit()
-	genericType := TypeNil
+	var typeDef TypeDef = GenericTypeDef{TypeNil}
 	if token.Type != TokenEquals {
 		p.lexer.Unread(token) // Unread token so it can be parsed as the type
-		genericType = p.ParseTypeDef().GetGenericType()
+		typeDef = p.ParseTypeDef()
 		p.ExpectToken(TokenEquals)
 	}
 
-	valNode, valType := p.ParseValue(genericType)
+	valNode, valType := p.ParseValue(typeDef)
+	if typeDef.GetGenericType() != TypeNil && !valType.Equals(typeDef) {
+		p.ThrowTypeError("Incorrect type of value on right hand side of variable declaration.")
+	}
 
 	p.currentTypeEnv.Set(identifier, valType)
 
