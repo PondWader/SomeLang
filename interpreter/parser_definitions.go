@@ -1,17 +1,20 @@
 package interpreter
 
-func (p *Parser) ParseFunctionDef() (name string, args map[string]TypeDef, returnType TypeDef) {
+func (p *Parser) ParseFunctionDef() (name string, argDefs []TypeDef, argNames []string, returnType TypeDef) {
 	name = p.ExpectToken(TokenIdentifier).Literal
 	p.ExpectToken(TokenLeftBracket)
-	args = make(map[string]TypeDef, 0)
-	for {
+
+	argDefs = make([]TypeDef, 0)
+	argNames = make([]string, 0)
+	for i := 0; ; i++ {
 		token := p.ExpectToken(TokenIdentifier, TokenRightBracket)
 		if token.Type == TokenRightBracket {
 			break
 		}
 
 		p.ExpectToken(TokenColon)
-		args[token.Literal] = p.ParseTypeDef()
+		argDefs = append(argDefs, p.ParseTypeDef())
+		argNames = append(argNames, token.Literal)
 
 		token = p.ExpectToken(TokenComma, TokenRightBracket)
 		if token.Type == TokenRightBracket {
@@ -31,10 +34,10 @@ func (p *Parser) ParseTypeDef() TypeDef {
 	var typeDef TypeDef
 	switch token.Type {
 	case TokenFunctionDeclaration:
-		_, args, returnType := p.ParseFunctionDef()
+		_, argDefs, _, returnType := p.ParseFunctionDef()
 		typeDef = FuncDef{
 			GenericTypeDef{TypeFunc},
-			args,
+			argDefs,
 			returnType,
 		}
 
@@ -71,38 +74,7 @@ func (p *Parser) ParseTypeDef() TypeDef {
 }
 
 // A function that converts a token for a type (such as "int8") to it's corresponding type code
-// There's not really any other way to do this
 func TypeTokenToPrimitiveType(token Token) GenericType {
-	switch token.Type {
-	case TokenTypeInt8:
-		return TypeInt8
-	case TokenTypeInt16:
-		return TypeInt16
-	case TokenTypeInt32:
-		return TypeInt32
-	case TokenTypeInt48:
-		return TypeInt48
-	case TokenTypeInt64:
-		return TypeUint64
-	case TokenTypeUint8:
-		return TypeUint8
-	case TokenTypeUint16:
-		return TypeInt16
-	case TokenTypeUint32:
-		return TypeInt32
-	case TokenTypeUint48:
-		return TypeInt48
-	case TokenTypeUint64:
-		return TypeInt64
-	case TokenTypeFloat32:
-		return TypeFloat32
-	case TokenTypeFloat64:
-		return TypeFloat64
-	case TokenTypeBool:
-		return TypeBool
-	case TokenTypeString:
-		return TypeString
-	}
-
-	return 0
+	// Uses the offset of the first token type, based on the assumption they are in the same order as the types
+	return GenericType(token.Type - TokenTypeInt8)
 }

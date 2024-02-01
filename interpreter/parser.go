@@ -42,15 +42,29 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 	if token.Type == TokenRightBrace && inBlock {
 		return nil
 	}
+
+	// Check for comment
+	if token.Type == TokenForwardSlash {
+		if p.lexer.PeekOrExit().Type == TokenForwardSlash {
+			for {
+				if token, err := p.lexer.Next(); err == nil && token.Type == TokenNewLine {
+					return p.ParseNext(inBlock)
+				}
+			}
+		}
+	}
+
 	defer func() {
-		// Since this is a deferred function we must recover the panic
-		// so that we the proper panic message can be displayed even if
+		// Since this is a deferred function it must recover the panic
+		// so that the proper panic message can be displayed even if
 		// ExpectToken would run in to an error.
 		if err := recover(); err != nil {
 			panic(err)
 		}
 		// Expect token ending the statement
-		p.ExpectToken(TokenEOF, TokenNewLine, TokenSemiColon)
+		if token := p.ExpectToken(TokenEOF, TokenNewLine, TokenSemiColon, TokenForwardSlash); token.Type == TokenForwardSlash {
+			p.lexer.Unread(token) // If the token is the start of a comment, it should be unread so the next call of ParseNext() reads the start of the comment
+		}
 	}()
 
 	switch token.Type {
@@ -59,48 +73,64 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 	case TokenFunctionDeclaration:
 		return p.ParseFunctionDeclaration()
 	case TokenIdentifier:
-		_, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
+		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
-		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal})
+		node, _ := p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
+		return node
 	case TokenEOF:
 		return nil
 	default:
-		p.ThrowSyntaxError("Unexpected token type \"", token.Literal, "\".")
+		p.ThrowSyntaxError("Unexpected token \"", token.Literal, "\".")
 	}
 	return nil
 }
 
 // Parses everything that follows an identifier to parse function calls and key access
-func (p *Parser) ParseFullIdentifierExpression(value nodes.Node) nodes.Node {
+func (p *Parser) ParseFullIdentifierExpression(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
 	switch p.lexer.PeekOrExit().Type {
 	case TokenLeftBracket:
 		p.lexer.Next()
-		args := make([]nodes.Node, 0)
-		for {
+
+		funcDef, ok := def.(FuncDef)
+		if !ok {
+			p.ThrowTypeError("Cannot call a non-function value")
+		}
+
+		args := make([]nodes.Node, len(funcDef.Args))
+		for i := 0; ; i++ {
 			if token := p.lexer.PeekOrExit(); token.Type == TokenRightBracket {
 				p.lexer.Next()
 				break
 			}
-			val, _ := p.ParseValue()
-			args = append(args, val)
+			if i >= len(args) {
+				p.ThrowTypeError("Too many arguments passed to function.")
+			}
+
+			val, valDef := p.ParseValue()
+			if !valDef.Equals(funcDef.Args[i]) {
+				p.ThrowTypeError("Incorrect type passed for argument ", i+1, " of function call.")
+			}
+
+			args[i] = val
 			token := p.ExpectToken(TokenRightBracket, TokenComma)
 			if token.Type == TokenRightBracket {
 				break
 			}
 		}
+
 		return p.ParseFullIdentifierExpression(&nodes.FuncCall{
 			Args:     args,
 			Function: value,
-		})
-	case TokenPeriod:
-		p.lexer.Next()
-		identToken := p.ExpectToken(TokenIdentifier)
-		return p.ParseFullIdentifierExpression(&nodes.KeyAccess{
-			Object: value,
-			Key:    identToken.Literal,
-		})
+		}, funcDef.ReturnType)
+	/*case TokenPeriod:
+	p.lexer.Next()
+	identToken := p.ExpectToken(TokenIdentifier)
+	return p.ParseFullIdentifierExpression(&nodes.KeyAccess{
+		Object: value,
+		Key:    identToken.Literal,
+	})*/
 	case TokenEquals:
 		p.lexer.Next()
 		nextToken := p.lexer.PeekOrExit()
@@ -119,14 +149,14 @@ func (p *Parser) ParseFullIdentifierExpression(value nodes.Node) nodes.Node {
 			return &nodes.Assignment{
 				Identifier: ident.Name,
 				NewValue:   newVal,
-			}
+			}, newType
 		} else if _, ok := value.(*nodes.KeyAccess); ok {
 
 		} else {
 			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
 		}
 	}
-	return value
+	return value, def
 }
 
 func (p *Parser) ParseValue() (nodes.Node, TypeDef) {
@@ -149,11 +179,11 @@ func (p *Parser) ParseValue() (nodes.Node, TypeDef) {
 		val, _ := strconv.ParseInt(token.Literal, 10, 64)
 		return &nodes.Value{Value: val}, GenericTypeDef{TypeInt64}
 	case TokenIdentifier:
-		_, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
+		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
-		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}), GenericTypeDef{}
+		return p.ParseFullIdentifierExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
 	}
 	return nil, nil
 }
@@ -173,22 +203,19 @@ func (p *Parser) ParseVarDeclaration() nodes.Node {
 }
 
 func (p *Parser) ParseFunctionDeclaration() nodes.Node {
-	funcName, args, returnType := p.ParseFunctionDef()
-
-	inner := p.ParseBlock(args)
-
-	argNames := make([]string, len(args))
-	i := 0
-	for name := range args {
-		argNames[i] = name
-		i++
-	}
+	funcName, argDefs, argNames, returnType := p.ParseFunctionDef()
 
 	p.currentTypeEnv.Set(funcName, FuncDef{
 		GenericTypeDef{TypeFunc},
-		args,
+		argDefs,
 		returnType,
 	})
+
+	args := make(map[string]TypeDef, len(argDefs))
+	for i, name := range argNames {
+		args[name] = argDefs[i]
+	}
+	inner := p.ParseBlock(args)
 
 	return &nodes.FuncDeclaration{
 		Name:     funcName,

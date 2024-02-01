@@ -12,7 +12,7 @@ type Token struct {
 	Line    int
 }
 
-type TokenType uint
+type TokenType uint8
 
 const (
 	// Statements
@@ -216,4 +216,10 @@ func (l *Lexer) readString() (string, error) {
 
 func (l *Lexer) GetCurrentLine() int {
 	return l.currentLine
+}
+
+// Moves the cursor back to the start of the previously read token so it will be read at the next call of Next().
+// Only the last read token should be passed to Unread.
+func (l *Lexer) Unread(token Token) {
+	l.cursor -= len(token.Literal)
 }

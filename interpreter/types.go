@@ -3,10 +3,7 @@ package interpreter
 type GenericType uint8
 
 const (
-	TypeFunc GenericType = iota
-	TypeMap
-	TypeArray
-	TypeInt8
+	TypeInt8 GenericType = iota
 	TypeInt16
 	TypeInt32
 	TypeInt48
@@ -20,6 +17,9 @@ const (
 	TypeFloat64
 	TypeString
 	TypeBool
+	TypeMap
+	TypeFunc
+	TypeArray
 )
 
 type TypeDef interface {
@@ -41,7 +41,7 @@ func (def GenericTypeDef) Equals(other TypeDef) bool {
 
 type FuncDef struct {
 	GenericTypeDef
-	Args       map[string]TypeDef
+	Args       []TypeDef
 	ReturnType TypeDef
 }
 
@@ -50,8 +50,8 @@ func (def FuncDef) Equals(other TypeDef) bool {
 	if !ok || len(def.Args) != len(otherDef.Args) {
 		return false
 	}
-	for key, value := range def.Args {
-		if otherDef.Args[key] != value {
+	for i, argDef := range def.Args {
+		if otherDef.Args[i].Equals(argDef) {
 			return false
 		}
 	}
