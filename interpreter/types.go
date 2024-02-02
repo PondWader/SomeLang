@@ -18,6 +18,7 @@ const (
 	TypeMap
 	TypeFunc
 	TypeArray
+	TypeAny
 
 	TypeNil
 )
@@ -36,6 +37,9 @@ func (def GenericTypeDef) GetGenericType() GenericType {
 }
 
 func (def GenericTypeDef) Equals(other TypeDef) bool {
+	if def.Type == TypeAny || other.GetGenericType() == TypeAny {
+		return true
+	}
 	return def == other.(GenericTypeDef)
 }
 
@@ -46,6 +50,9 @@ type FuncDef struct {
 }
 
 func (def FuncDef) Equals(other TypeDef) bool {
+	if other.GetGenericType() == TypeAny {
+		return true
+	}
 	otherDef, ok := other.(FuncDef)
 	if !ok || len(def.Args) != len(otherDef.Args) {
 		return false
@@ -65,6 +72,9 @@ type MapDef struct {
 }
 
 func (def MapDef) Equals(other TypeDef) bool {
+	if other.GetGenericType() == TypeAny {
+		return true
+	}
 	otherDef, ok := other.(MapDef)
 	return ok && def.KeyType.Equals(otherDef.KeyType) && def.ValueType.Equals(otherDef.ValueType)
 }
@@ -75,6 +85,9 @@ type ArrayDef struct {
 }
 
 func (def ArrayDef) Equals(other TypeDef) bool {
+	if other.GetGenericType() == TypeAny {
+		return true
+	}
 	otherDef, ok := other.(ArrayDef)
 	return ok && def.ElementType.Equals(otherDef.ElementType)
 }

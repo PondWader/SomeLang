@@ -55,7 +55,16 @@ func (p *Parser) ParseFullValueExpression(value nodes.Node, def TypeDef) (nodes.
 		nextToken := p.lexer.PeekOrExit()
 		// Check if the expression is a comparison, otherwise it's an assignment expression
 		if nextToken.Type == TokenEquals {
-
+			p.lexer.Next()
+			rhsVal, rhsValDef := p.ParseValue(def)
+			if !rhsValDef.Equals(def) {
+				p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
+			}
+			return &nodes.Comparison{
+				Type:      nodes.ComparisonEquals,
+				LeftSide:  value,
+				RightSide: rhsVal,
+			}, GenericTypeDef{TypeBool}
 		}
 
 		if ident, ok := value.(*nodes.Identifier); ok {

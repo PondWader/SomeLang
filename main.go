@@ -14,20 +14,22 @@ func main() {
 	runProfiler := flag.Bool("profile", false, "If passed the program execution will be profiled")
 	flag.Parse()
 
-  fmt.Println(*entryPoint, *runProfiler)
-  var err error
-  *entryPoint, err = filepath.Abs(*entryPoint)
-  if err != nil {
-    fmt.Println("Error resolving entry point path:", err)
-  }
+	fmt.Println(*entryPoint, *runProfiler)
+	var err error
+	*entryPoint, err = filepath.Abs(*entryPoint)
+	if err != nil {
+		fmt.Println("Error resolving entry point path:", err)
+	}
 	content, err := os.ReadFile(*entryPoint)
-  if err != nil {
-    fmt.Println("Error reading entry point file:", err)
-  }
-  
-	ast := interpreter.Parse(string(content), *entryPoint)
-  interpreter.Execute(ast, *entryPoint, map[string]any{
-    "print": standardlibrary.Print,
-    "input": standardlibrary.Input,
-  })
+	if err != nil {
+		fmt.Println("Error reading entry point file:", err)
+	}
+
+	ast := interpreter.Parse(string(content), *entryPoint, map[string]interpreter.TypeDef{
+		"print": standardlibrary.PrintDef,
+	})
+	interpreter.Execute(ast, *entryPoint, map[string]any{
+		"print": standardlibrary.Print,
+		"input": standardlibrary.Input,
+	})
 }

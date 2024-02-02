@@ -15,12 +15,17 @@ type Parser struct {
 }
 
 // Creates abstract syntax tree
-func Parse(content string, filePath string) []nodes.Node {
+func Parse(content string, filePath string, globals map[string]TypeDef) []nodes.Node {
 	p := &Parser{
 		lexer:          NewLexer(content),
 		filePath:       filePath,
 		currentTypeEnv: NewTypeEnvironment(nil, nil),
 	}
+
+	for name, def := range globals {
+		p.currentTypeEnv.Set(name, def)
+	}
+
 	ast := make([]nodes.Node, 0)
 	for {
 		node := p.ParseNext(false)
