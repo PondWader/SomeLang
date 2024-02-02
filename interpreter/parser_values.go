@@ -23,12 +23,20 @@ func (p *Parser) ParseFullValueExpression(value nodes.Node, def TypeDef) (nodes.
 				p.lexer.Next()
 				break
 			}
-			if i >= len(args) {
+
+			var argDef TypeDef
+			// If the function is variadic, there can be an infinite number of args of the last arg type
+			if i >= len(args) && funcDef.Variadic {
+				args = append(args, nil)
+				argDef = funcDef.Args[len(funcDef.Args)-1]
+			} else if i >= len(args) {
 				p.ThrowTypeError("Too many arguments passed to function.")
+			} else {
+				argDef = funcDef.Args[i]
 			}
 
-			val, valDef := p.ParseValue(funcDef.Args[i])
-			if !valDef.Equals(funcDef.Args[i]) {
+			val, valDef := p.ParseValue(argDef)
+			if !valDef.Equals(argDef) {
 				p.ThrowTypeError("Incorrect type passed for argument ", i+1, " of function call.")
 			}
 

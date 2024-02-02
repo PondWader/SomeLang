@@ -45,7 +45,9 @@ func (def GenericTypeDef) Equals(other TypeDef) bool {
 
 type FuncDef struct {
 	GenericTypeDef
-	Args       []TypeDef
+	Args []TypeDef
+	// Whether or not the function has a variable number of arguments
+	Variadic   bool
 	ReturnType TypeDef
 }
 

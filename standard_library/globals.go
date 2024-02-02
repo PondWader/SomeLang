@@ -29,6 +29,7 @@ var PrintDef = interpreter.FuncDef{
 	Args: []interpreter.TypeDef{
 		interpreter.GenericTypeDef{Type: interpreter.TypeAny},
 	},
+	Variadic:   true,
 	ReturnType: nil,
 }
 

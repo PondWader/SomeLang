@@ -42,6 +42,7 @@ func (p *Parser) ParseTypeDef() TypeDef {
 		typeDef = FuncDef{
 			GenericTypeDef{TypeFunc},
 			argDefs,
+			false,
 			returnType,
 		}
 

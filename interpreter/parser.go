@@ -134,6 +134,7 @@ func (p *Parser) ParseFunctionDeclaration() nodes.Node {
 	p.currentTypeEnv.Set(funcName, FuncDef{
 		GenericTypeDef{TypeFunc},
 		argDefs,
+		false,
 		returnType,
 	})
 
