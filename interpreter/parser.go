@@ -57,6 +57,12 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 		}
 	}
 
+	// If the current block has already returned, we don't want to read anymore statements
+	// and instead can recursively read through all tokens until the closing curly right brace
+	if p.currentTypeEnv.Returned {
+		return p.ParseNext(inBlock)
+	}
+
 	defer func() {
 		// Since this is a deferred function it must recover the panic
 		// so that the proper panic message can be displayed even if
@@ -75,6 +81,8 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 		return p.ParseVarDeclaration()
 	case TokenFunctionDeclaration:
 		return p.ParseFunctionDeclaration()
+	case TokenIfStatement:
+		return p.ParseIfStatement()
 	case TokenIdentifier:
 		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
@@ -83,12 +91,13 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 		node, _ := p.ParseFullValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
 		return node
 	case TokenReturnStatement:
-		if p.currentTypeEnv.ReturnType == nil {
+		returnType := p.currentTypeEnv.GetReturnType()
+		if returnType == nil {
 			p.ThrowSyntaxError("You cannot use a return statement outside of a function with a defined return type.")
 		}
 
-		returnValue, returnValueDef := p.ParseValue(p.currentTypeEnv.ReturnType)
-		if !returnValueDef.Equals(p.currentTypeEnv.ReturnType) {
+		returnValue, returnValueDef := p.ParseFullValue(returnType)
+		if !returnValueDef.Equals(returnType) {
 			p.ThrowTypeError("Incorrect type of value returned.")
 		}
 		p.currentTypeEnv.Returned = true
@@ -101,55 +110,6 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 		p.ThrowSyntaxError("Unexpected token \"", token.Literal, "\".")
 	}
 	return nil
-}
-
-func (p *Parser) ParseVarDeclaration() nodes.Node {
-	token := p.ExpectToken(TokenIdentifier)
-	identifier := token.Literal
-
-	token = p.lexer.NextOrExit()
-	var typeDef TypeDef = GenericTypeDef{TypeNil}
-	if token.Type != TokenEquals {
-		p.lexer.Unread(token) // Unread token so it can be parsed as the type
-		typeDef = p.ParseTypeDef()
-		p.ExpectToken(TokenEquals)
-	}
-
-	valNode, valType := p.ParseValue(typeDef)
-	if typeDef.GetGenericType() != TypeNil && !valType.Equals(typeDef) {
-		p.ThrowTypeError("Incorrect type of value on right hand side of variable declaration.")
-	}
-
-	p.currentTypeEnv.Set(identifier, valType)
-
-	return &nodes.VarDeclaration{
-		Identifier: identifier,
-		Value:      valNode,
-	}
-}
-
-func (p *Parser) ParseFunctionDeclaration() nodes.Node {
-	funcName, argDefs, argNames, returnType := p.ParseFunctionDef()
-
-	p.currentTypeEnv.Set(funcName, FuncDef{
-		GenericTypeDef{TypeFunc},
-		argDefs,
-		false,
-		returnType,
-	})
-
-	args := make(map[string]TypeDef, len(argDefs))
-	for i, name := range argNames {
-		args[name] = argDefs[i]
-	}
-	inner := p.ParseBlock(args, returnType)
-
-	return &nodes.FuncDeclaration{
-		Name:     funcName,
-		ArgNames: argNames,
-		Inner:    inner,
-		Line:     p.lexer.GetCurrentLine(),
-	}
 }
 
 func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef, returnType TypeDef) *nodes.Block {

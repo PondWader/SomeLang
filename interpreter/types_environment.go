@@ -21,6 +21,15 @@ func (e *TypeEnvironment) NewChild(returnType TypeDef) *TypeEnvironment {
 	return NewTypeEnvironment(e, returnType)
 }
 
+func (e *TypeEnvironment) GetReturnType() TypeDef {
+	if e.ReturnType != nil {
+		return e.ReturnType
+	} else if e.parent != nil {
+		return e.parent.GetReturnType()
+	}
+	return nil
+}
+
 func (e *TypeEnvironment) GetParent() *TypeEnvironment {
 	return e.parent
 }

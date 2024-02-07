@@ -37,6 +37,12 @@ func Print(args ...any) {
 	fmt.Println(args...)
 }
 
+var InputDef = interpreter.FuncDef{
+	GenericTypeDef: interpreter.GenericTypeDef{Type: interpreter.TypeFunc},
+	Args:           make([]interpreter.TypeDef, 0),
+	ReturnType:     interpreter.GenericTypeDef{Type: interpreter.TypeString},
+}
+
 func Input() string {
 	reader := bufio.NewReader(os.Stdin)
 	line, _, _ := reader.ReadLine()

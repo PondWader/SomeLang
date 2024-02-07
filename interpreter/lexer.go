@@ -220,5 +220,13 @@ func (l *Lexer) GetCurrentLine() int {
 // Moves the cursor back to the start of the previously read token so it will be read at the next call of Next().
 // Only the last read token should be passed to Unread.
 func (l *Lexer) Unread(token Token) {
+	if token.Type == TokenEOF {
+		return
+	}
 	l.cursor -= len(token.Literal)
+	if token.Type == TokenString {
+		l.cursor -= 2 // Account for quotation marks on either side
+	} else if token.Type == TokenNewLine {
+		l.currentLine--
+	}
 }

@@ -27,6 +27,7 @@ func main() {
 
 	ast := interpreter.Parse(string(content), *entryPoint, map[string]interpreter.TypeDef{
 		"print": standardlibrary.PrintDef,
+		"input": standardlibrary.InputDef,
 	})
 	interpreter.Execute(ast, *entryPoint, map[string]any{
 		"print": standardlibrary.Print,
