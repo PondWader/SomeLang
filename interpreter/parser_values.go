@@ -1,14 +1,13 @@
 package interpreter
 
 import (
-	"fmt"
 	"main/interpreter/nodes"
 	"strconv"
 )
 
 // Parses everything that follows a value to parse the full value expression.
 // This includes things such as function calls, key access, comparisons, operations etc
-func (p *Parser) ParseFullValueExpression(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
+func (p *Parser) ParseValueExpression(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
 	token := p.lexer.NextOrExit()
 	switch token.Type {
 	case TokenLeftBracket:
@@ -47,25 +46,34 @@ func (p *Parser) ParseFullValueExpression(value nodes.Node, def TypeDef) (nodes.
 			}
 		}
 
-		return p.ParseFullValueExpression(&nodes.FuncCall{
+		return p.ParseValueExpression(&nodes.FuncCall{
 			Args:     args,
 			Function: value,
 		}, funcDef.ReturnType)
 	/*case TokenPeriod:
 	p.lexer.Next()
 	identToken := p.ExpectToken(TokenIdentifier)
-	return p.ParseFullValueExpression(&nodes.KeyAccess{
+	return p.ParseValueExpression(&nodes.KeyAccess{
 		Object: value,
 		Key:    identToken.Literal,
 	})*/
 	case TokenLeftSquareBracket:
 	case TokenEquals:
-		if p.lexer.PeekOrExit().Type == TokenEquals {
-			break
+		if p.lexer.PeekOrExit().Type == TokenEquals { // Comparison
+			p.lexer.Next()
+			rhsVal, rhsValDef := p.ParsePartialValue(def)
+			if !rhsValDef.Equals(def) {
+				p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
+			}
+			return &nodes.Comparison{
+				Type:      nodes.ComparisonEquals,
+				LeftSide:  value,
+				RightSide: rhsVal,
+			}, GenericTypeDef{TypeBool}
 		}
 
 		if ident, ok := value.(*nodes.Identifier); ok {
-			newVal, newValDef := p.ParseValue(def)
+			newVal, newValDef := p.ParsePartialValue(def)
 			if !def.Equals(newValDef) {
 				p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
 			}
@@ -84,7 +92,7 @@ func (p *Parser) ParseFullValueExpression(value nodes.Node, def TypeDef) (nodes.
 	return value, def
 }
 
-func (p *Parser) ParseValueOperation(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
+func (p *Parser) ParseLogicalOperator(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
 	token := p.lexer.NextOrExit()
 
 	switch token.Type {
@@ -95,7 +103,7 @@ func (p *Parser) ParseValueOperation(value nodes.Node, def TypeDef) (nodes.Node,
 			p.ThrowTypeError("Operation && can only be used on boolean value.")
 		}
 
-		rhsVal, rhsValDef := p.ParseValue(nil)
+		rhsVal, rhsValDef := p.ParsePartialValue(nil)
 		if !rhsValDef.Equals(GenericTypeDef{TypeBool}) {
 			p.ThrowTypeError("Right hand side of && operation must be a boolean value.")
 		}
@@ -104,38 +112,22 @@ func (p *Parser) ParseValueOperation(value nodes.Node, def TypeDef) (nodes.Node,
 			LeftSide:  value,
 			RightSide: rhsVal,
 		}, GenericTypeDef{TypeBool}
-
-	case TokenEquals:
-		p.ExpectToken(TokenEquals)
-		// Check if the expression is a comparison, otherwise it's an assignment expression
-		rhsVal, rhsValDef := p.ParseValue(def)
-		if !rhsValDef.Equals(def) {
-			p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
-		}
-		return &nodes.Comparison{
-			Type:      nodes.ComparisonEquals,
-			LeftSide:  value,
-			RightSide: rhsVal,
-		}, GenericTypeDef{TypeBool}
-
 	}
 
 	p.lexer.Unread(token)
 	return value, def
 }
 
-// Parses a value of any type, without accounting for operations that follow it.
-//
-// If implicitType is passed, the value will be coerced to the implicit type if possible.
-func (p *Parser) ParseValue(implicitType TypeDef) (nodes.Node, TypeDef) {
+// Parses a value of any type, without accounting for logical operations that follow it.
+func (p *Parser) ParsePartialValue(implicitType TypeDef) (nodes.Node, TypeDef) {
 	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse)
 	switch token.Type {
 	case TokenString:
-		return &nodes.Value{Value: token.Literal}, GenericTypeDef{TypeString}
+		return p.ParseValueExpression(&nodes.Value{Value: token.Literal}, GenericTypeDef{TypeString})
 	case TokenTrue:
-		return &nodes.Value{Value: true}, GenericTypeDef{TypeBool}
+		return p.ParseValueExpression(&nodes.Value{Value: true}, GenericTypeDef{TypeBool})
 	case TokenFalse:
-		return &nodes.Value{Value: false}, GenericTypeDef{TypeBool}
+		return p.ParseValueExpression(&nodes.Value{Value: false}, GenericTypeDef{TypeBool})
 	case TokenNumber:
 		// Check for decimal point, in which case it's a float
 		if p.lexer.PeekOrExit().Type == TokenPeriod {
@@ -145,29 +137,27 @@ func (p *Parser) ParseValue(implicitType TypeDef) (nodes.Node, TypeDef) {
 			if implicitVal := ConvertFloat64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
 				return &nodes.Value{Value: implicitVal}, implicitType
 			}
-			return &nodes.Value{Value: val}, GenericTypeDef{TypeFloat64}
+			return p.ParseValueExpression(&nodes.Value{Value: val}, GenericTypeDef{TypeFloat64})
 		}
 		val, _ := strconv.ParseInt(token.Literal, 10, 64)
 
 		if implicitVal := ConvertInt64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
-			return &nodes.Value{Value: implicitVal}, implicitType
+			return p.ParseValueExpression(&nodes.Value{Value: implicitVal}, implicitType)
 		}
-		return &nodes.Value{Value: val}, GenericTypeDef{TypeInt64}
+		return p.ParseValueExpression(&nodes.Value{Value: val}, GenericTypeDef{TypeInt64})
 	case TokenIdentifier:
 		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
-		return p.ParseFullValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
+		return p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
 	}
 	return nil, nil
 }
 
-// Parses a full value, accounting for values followed by operations.
+// Parses a value of any type, without accounting for operations that follow it.
 //
 // If implicitType is passed, the value will be coerced to the implicit type if possible.
-func (p *Parser) ParseFullValue(implicitType TypeDef) (nodes.Node, TypeDef) {
-	val, def := p.ParseValue(implicitType)
-	fmt.Println(val, def.GetGenericType())
-	return p.ParseValueOperation(val, def)
+func (p *Parser) ParseValue(implicitType TypeDef) (nodes.Node, TypeDef) {
+	return p.ParseLogicalOperator(p.ParsePartialValue(implicitType))
 }

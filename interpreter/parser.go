@@ -88,7 +88,7 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 		if !ok {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
-		node, _ := p.ParseFullValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
+		node, _ := p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
 		return node
 	case TokenReturnStatement:
 		returnType := p.currentTypeEnv.GetReturnType()
@@ -96,7 +96,7 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 			p.ThrowSyntaxError("You cannot use a return statement outside of a function with a defined return type.")
 		}
 
-		returnValue, returnValueDef := p.ParseFullValue(returnType)
+		returnValue, returnValueDef := p.ParseValue(returnType)
 		if !returnValueDef.Equals(returnType) {
 			p.ThrowTypeError("Incorrect type of value returned.")
 		}

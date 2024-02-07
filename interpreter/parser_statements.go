@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"main/interpreter/nodes"
 )
 
@@ -17,7 +16,7 @@ func (p *Parser) ParseVarDeclaration() nodes.Node {
 		p.ExpectToken(TokenEquals)
 	}
 
-	valNode, valType := p.ParseFullValue(typeDef)
+	valNode, valType := p.ParseValue(typeDef)
 	if typeDef.GetGenericType() != TypeNil && !valType.Equals(typeDef) {
 		p.ThrowTypeError("Incorrect type of value on right hand side of variable declaration.")
 	}
@@ -55,15 +54,11 @@ func (p *Parser) ParseFunctionDeclaration() nodes.Node {
 }
 
 func (p *Parser) ParseIfStatement() nodes.Node {
-	fmt.Println("Parsing if val")
-	val, valDef := p.ParseFullValue(nil)
-	fmt.Println("Parsed if val")
+	val, valDef := p.ParseValue(nil)
 	if !valDef.Equals(GenericTypeDef{TypeBool}) {
 		p.ThrowTypeError("If statement must be followed by a bool value.")
 	}
-	fmt.Println("Parsing block")
 	inner := p.ParseBlock(make(map[string]TypeDef), nil)
-	fmt.Println("Parsed block")
 
 	var elseNode nodes.Node
 	// Check for else statement
