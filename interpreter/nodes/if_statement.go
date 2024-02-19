@@ -3,9 +3,9 @@ package nodes
 import "main/interpreter/environment"
 
 type IfStatement struct {
-	Condition Node
+	Condition environment.Node
 	Inner     *Block
-	Else      Node
+	Else      environment.Node
 }
 
 func (is *IfStatement) Eval(env *environment.Environment) any {
@@ -16,4 +16,12 @@ func (is *IfStatement) Eval(env *environment.Environment) any {
 		is.Else.Eval(env)
 	}
 	return nil
+}
+
+func (is *IfStatement) References() []string {
+	refs := append(is.Condition.References(), is.Inner.References()...)
+	if is.Else != nil {
+		return append(refs, is.Else.References()...)
+	}
+	return refs
 }

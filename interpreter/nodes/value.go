@@ -2,7 +2,6 @@ package nodes
 
 import (
 	"main/interpreter/environment"
-	"reflect"
 )
 
 type Value struct {
@@ -10,9 +9,9 @@ type Value struct {
 }
 
 func (v *Value) Eval(env *environment.Environment) any {
-  return v.Value
+	return v.Value
 }
 
-func (v *Value) Type(env *environment.Environment) string {
-  return reflect.TypeOf(v.Value).Name()
+func (v *Value) References() []string {
+	return []string{}
 }

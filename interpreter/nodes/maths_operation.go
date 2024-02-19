@@ -16,8 +16,8 @@ const (
 
 type MathsOperation[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64] struct {
 	Operation MathsOperationType
-	LeftSide  Node
-	RightSide Node
+	LeftSide  environment.Node
+	RightSide environment.Node
 }
 
 func (mo *MathsOperation[T]) Eval(env *environment.Environment) any {
@@ -37,4 +37,8 @@ func (mo *MathsOperation[T]) Eval(env *environment.Environment) any {
 		return lhs / rhs
 	}
 	return 0
+}
+
+func (mo *MathsOperation[T]) References() []string {
+	return append(mo.LeftSide.References(), mo.RightSide.References()...)
 }

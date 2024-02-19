@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"main/interpreter/environment"
 	"main/interpreter/nodes"
 	"os"
 
@@ -15,7 +16,7 @@ type Parser struct {
 }
 
 // Creates abstract syntax tree
-func Parse(content string, filePath string, globals map[string]TypeDef) []nodes.Node {
+func Parse(content string, filePath string, globals map[string]TypeDef) []environment.Node {
 	p := &Parser{
 		lexer:          NewLexer(content),
 		filePath:       filePath,
@@ -26,7 +27,7 @@ func Parse(content string, filePath string, globals map[string]TypeDef) []nodes.
 		p.currentTypeEnv.Set(name, def)
 	}
 
-	ast := make([]nodes.Node, 0)
+	ast := make([]environment.Node, 0)
 	for {
 		node := p.ParseNext(false)
 		if node == nil {
@@ -37,7 +38,7 @@ func Parse(content string, filePath string, globals map[string]TypeDef) []nodes.
 	return ast
 }
 
-func (p *Parser) ParseNext(inBlock bool) nodes.Node {
+func (p *Parser) ParseNext(inBlock bool) environment.Node {
 	token := p.lexer.NextOrExit()
 	if token.Type == TokenNewLine || token.Type == TokenSemiColon {
 		return p.ParseNext(inBlock)
@@ -114,7 +115,7 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 }
 
 func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef, returnType TypeDef) *nodes.Block {
-	ast := make([]nodes.Node, 0)
+	ast := make([]environment.Node, 0)
 	p.ExpectToken(TokenLeftBrace)
 
 	p.currentTypeEnv = p.currentTypeEnv.NewChild(returnType)

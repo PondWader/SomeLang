@@ -4,11 +4,15 @@ import "main/interpreter/environment"
 
 type Assignment struct {
 	Identifier string
-	NewValue   Node
+	NewValue   environment.Node
 }
 
 func (a *Assignment) Eval(env *environment.Environment) any {
-  newVal := a.NewValue.Eval(env)
+	newVal := a.NewValue.Eval(env)
 	env.Set(a.Identifier, newVal)
-  return newVal 
+	return newVal
+}
+
+func (a *Assignment) References() []string {
+	return []string{a.Identifier}
 }

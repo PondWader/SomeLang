@@ -1,10 +1,11 @@
 package interpreter
 
 import (
+	"main/interpreter/environment"
 	"main/interpreter/nodes"
 )
 
-func (p *Parser) ParseVarDeclaration() nodes.Node {
+func (p *Parser) ParseVarDeclaration() environment.Node {
 	token := p.ExpectToken(TokenIdentifier)
 	identifier := token.Literal
 
@@ -29,7 +30,7 @@ func (p *Parser) ParseVarDeclaration() nodes.Node {
 	}
 }
 
-func (p *Parser) ParseFunctionDeclaration() nodes.Node {
+func (p *Parser) ParseFunctionDeclaration() environment.Node {
 	funcName, argDefs, argNames, returnType := p.ParseFunctionDef()
 
 	p.currentTypeEnv.Set(funcName, FuncDef{
@@ -53,14 +54,14 @@ func (p *Parser) ParseFunctionDeclaration() nodes.Node {
 	}
 }
 
-func (p *Parser) ParseIfStatement() nodes.Node {
+func (p *Parser) ParseIfStatement() environment.Node {
 	val, valDef := p.ParseValue(nil)
 	if !valDef.Equals(GenericTypeDef{TypeBool}) {
 		p.ThrowTypeError("If statement must be followed by a bool value.")
 	}
 	inner := p.ParseBlock(make(map[string]TypeDef), nil)
 
-	var elseNode nodes.Node
+	var elseNode environment.Node
 	// Check for else statement
 	if token := p.lexer.NextOrExit(); token.Type == TokenElseStatement {
 		token = p.ExpectToken(TokenIfStatement, TokenLeftBrace)

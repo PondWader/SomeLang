@@ -1,18 +1,17 @@
 package nodes
 
 import (
-  "main/interpreter/environment"
-  "reflect"
+	"main/interpreter/environment"
 )
 
 type Identifier struct {
-  Name string
+	Name string
 }
 
 func (i *Identifier) Eval(env *environment.Environment) any {
-  return env.Get(i.Name)
+	return env.Get(i.Name)
 }
 
-func (i *Identifier) Type(env *environment.Environment) string {
-  return reflect.TypeOf(env.Get(i.Name)).Name()
+func (i *Identifier) References() []string {
+	return []string{i.Name}
 }

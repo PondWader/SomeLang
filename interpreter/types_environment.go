@@ -14,7 +14,7 @@ func NewTypeEnvironment(parent *TypeEnvironment, returnType TypeDef) *TypeEnviro
 	if parent != nil {
 		parentEnv = &parent.Environment
 	}
-	return &TypeEnvironment{*environment.New(parentEnv, environment.Call{}), returnType, false, parent}
+	return &TypeEnvironment{*environment.New(parentEnv, nil, environment.Call{}), returnType, false, parent}
 }
 
 func (e *TypeEnvironment) NewChild(returnType TypeDef) *TypeEnvironment {

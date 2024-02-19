@@ -1,13 +1,14 @@
 package interpreter
 
 import (
+	"main/interpreter/environment"
 	"main/interpreter/nodes"
 	"strconv"
 )
 
 // Parses everything that follows a value to parse the full value expression.
 // This includes things such as function calls, key access, comparisons, operations etc
-func (p *Parser) ParseValueExpression(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
+func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (environment.Node, TypeDef) {
 	token := p.lexer.NextOrExit()
 	switch token.Type {
 	case TokenLeftBracket:
@@ -16,7 +17,7 @@ func (p *Parser) ParseValueExpression(value nodes.Node, def TypeDef) (nodes.Node
 			p.ThrowTypeError("Cannot call a non-function value")
 		}
 
-		args := make([]nodes.Node, len(funcDef.Args))
+		args := make([]environment.Node, len(funcDef.Args))
 		for i := 0; ; i++ {
 			if token := p.lexer.PeekOrExit(); token.Type == TokenRightBracket {
 				p.lexer.Next()
@@ -97,7 +98,7 @@ func (p *Parser) ParseValueExpression(value nodes.Node, def TypeDef) (nodes.Node
 }
 
 // Parses maths operations, respecting the correct order of operations
-func (p *Parser) ParseMathsOperations(operationType TokenType, value nodes.Node, def TypeDef, onlyMultiplication bool) (nodes.Node, TypeDef) {
+func (p *Parser) ParseMathsOperations(operationType TokenType, value environment.Node, def TypeDef, onlyMultiplication bool) (environment.Node, TypeDef) {
 	for {
 		rhsVal, rhsDef := p.ParsePartialValue(def)
 		if !rhsDef.Equals(def) {
@@ -136,7 +137,7 @@ func (p *Parser) ParseMathsOperations(operationType TokenType, value nodes.Node,
 	}
 }
 
-func (p *Parser) ParseOperator(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
+func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment.Node, TypeDef) {
 	token := p.lexer.NextOrExit()
 
 	switch token.Type {
@@ -186,7 +187,7 @@ func (p *Parser) ParseOperator(value nodes.Node, def TypeDef) (nodes.Node, TypeD
 }
 
 // Parses a value of any type, without accounting for logical operations that follow it.
-func (p *Parser) ParsePartialValue(implicitType TypeDef) (nodes.Node, TypeDef) {
+func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, TypeDef) {
 	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse, TokenDash, TokenLeftBracket, TokenNewLine)
 	switch token.Type {
 	case TokenString:
@@ -230,6 +231,6 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (nodes.Node, TypeDef) {
 // Parses a value of any type, without accounting for operations that follow it.
 //
 // If implicitType is passed, the value will be coerced to the implicit type if possible.
-func (p *Parser) ParseValue(implicitType TypeDef) (nodes.Node, TypeDef) {
+func (p *Parser) ParseValue(implicitType TypeDef) (environment.Node, TypeDef) {
 	return p.ParseOperator(p.ParsePartialValue(implicitType))
 }

@@ -4,14 +4,14 @@ import "main/interpreter/environment"
 
 type VarDeclaration struct {
 	Identifier string
-	Value      Node
+	Value      environment.Node
 }
 
 func (vd *VarDeclaration) Eval(env *environment.Environment) any {
-  env.Set(vd.Identifier, vd.Value.Eval(env))
-  return nil
+	env.Set(vd.Identifier, vd.Value.Eval(env))
+	return nil
 }
 
-func (vd *VarDeclaration) Type(env *environment.Environment) string {
-  return ""
+func (vd *VarDeclaration) References() []string {
+	return append(vd.Value.References(), vd.Identifier)
 }
