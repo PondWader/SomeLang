@@ -1,5 +1,9 @@
 package interpreter
 
+import (
+	"main/interpreter/nodes"
+)
+
 type GenericType uint8
 
 const (
@@ -26,6 +30,7 @@ const (
 type TypeDef interface {
 	GetGenericType() GenericType
 	Equals(TypeDef) bool
+	IsNumber() bool
 }
 
 type GenericTypeDef struct {
@@ -41,6 +46,78 @@ func (def GenericTypeDef) Equals(other TypeDef) bool {
 		return true
 	}
 	return def == other.(GenericTypeDef)
+}
+
+func (def GenericTypeDef) IsNumber() bool {
+	genericType := def.GetGenericType()
+	return genericType == TypeInt8 || genericType == TypeInt16 || genericType == TypeInt32 || genericType == TypeInt64 || genericType == TypeUint8 || genericType == TypeUint16 || genericType == TypeUint32 || genericType == TypeUint64 || genericType == TypeFloat32 || genericType == TypeFloat64
+}
+
+func getMathsOperationForDef(def TypeDef, operation nodes.MathsOperationType, leftSide nodes.Node, rightSide nodes.Node) nodes.Node {
+	genericType := def.GetGenericType()
+	switch genericType {
+	case TypeInt8:
+		return &nodes.MathsOperation[int8]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeInt16:
+		return &nodes.MathsOperation[int16]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeInt32:
+		return &nodes.MathsOperation[int32]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeInt64:
+		return &nodes.MathsOperation[int64]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeUint8:
+		return &nodes.MathsOperation[uint8]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeUint16:
+		return &nodes.MathsOperation[uint16]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeUint32:
+		return &nodes.MathsOperation[uint32]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeUint64:
+		return &nodes.MathsOperation[uint64]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeFloat32:
+		return &nodes.MathsOperation[float32]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	case TypeFloat64:
+		return &nodes.MathsOperation[float64]{
+			Operation: operation,
+			LeftSide:  leftSide,
+			RightSide: rightSide,
+		}
+	}
+	return nil
 }
 
 type FuncDef struct {

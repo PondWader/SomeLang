@@ -71,7 +71,7 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 			panic(err)
 		}
 		// Expect token ending the statement
-		if token := p.ExpectToken(TokenEOF, TokenNewLine, TokenSemiColon, TokenForwardSlash); token.Type == TokenForwardSlash {
+		if token := p.ExpectToken(TokenEOF, TokenNewLine, TokenSemiColon, TokenForwardSlash, TokenRightBrace); token.Type == TokenForwardSlash || token.Type == TokenRightBrace {
 			p.lexer.Unread(token) // If the token is the start of a comment, it should be unread so the next call of ParseNext() reads the start of the comment
 		}
 	}()
@@ -104,6 +104,7 @@ func (p *Parser) ParseNext(inBlock bool) nodes.Node {
 		return &nodes.Return{
 			Value: returnValue,
 		}
+	case TokenForStatement:
 	case TokenEOF:
 		return nil
 	default:

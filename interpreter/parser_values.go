@@ -21,6 +21,10 @@ func (p *Parser) ParseValueExpression(value nodes.Node, def TypeDef) (nodes.Node
 			if token := p.lexer.PeekOrExit(); token.Type == TokenRightBracket {
 				p.lexer.Next()
 				break
+			} else if token.Type == TokenNewLine { // Allow new lines between arguments
+				p.lexer.Next()
+				i--
+				continue
 			}
 
 			var argDef TypeDef
@@ -40,7 +44,7 @@ func (p *Parser) ParseValueExpression(value nodes.Node, def TypeDef) (nodes.Node
 			}
 
 			args[i] = val
-			token := p.ExpectToken(TokenRightBracket, TokenComma)
+			token := p.ExpectToken(TokenRightBracket, TokenComma, TokenNewLine)
 			if token.Type == TokenRightBracket {
 				break
 			}
@@ -92,7 +96,47 @@ func (p *Parser) ParseValueExpression(value nodes.Node, def TypeDef) (nodes.Node
 	return value, def
 }
 
-func (p *Parser) ParseLogicalOperator(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
+// Parses maths operations, respecting the correct order of operations
+func (p *Parser) ParseMathsOperations(operationType TokenType, value nodes.Node, def TypeDef, onlyMultiplication bool) (nodes.Node, TypeDef) {
+	for {
+		rhsVal, rhsDef := p.ParsePartialValue(def)
+		if !rhsDef.Equals(def) {
+			p.ThrowTypeError("Mathematical perations must be performed on values of the same type.")
+		}
+		if onlyMultiplication && operationType != TokenAsterisk && operationType != TokenForwardSlash {
+			return value, def
+		}
+
+		var operation nodes.MathsOperationType
+		switch operationType {
+		case TokenAsterisk:
+			operation = nodes.MathsMultiplication
+		case TokenForwardSlash:
+			operation = nodes.MathsDivision
+		case TokenPlus:
+			operation = nodes.MathsAddition
+		case TokenDash:
+			operation = nodes.MathsSubtraction
+		default:
+			panic("Non-operation token passed as operationType token")
+		}
+
+		// Read the next operation
+		token := p.lexer.NextOrExit()
+		if token.Type == TokenAsterisk || token.Type == TokenForwardSlash {
+			rhsVal, _ = p.ParseMathsOperations(token.Type, rhsVal, def, true)
+			token = p.lexer.NextOrExit()
+		}
+		value = getMathsOperationForDef(def, operation, value, rhsVal)
+		if token.Type != TokenAsterisk && token.Type != TokenForwardSlash && token.Type != TokenPlus && token.Type != TokenDash {
+			p.lexer.Unread(token)
+			return value, def
+		}
+		operationType = token.Type
+	}
+}
+
+func (p *Parser) ParseOperator(value nodes.Node, def TypeDef) (nodes.Node, TypeDef) {
 	token := p.lexer.NextOrExit()
 
 	switch token.Type {
@@ -103,7 +147,7 @@ func (p *Parser) ParseLogicalOperator(value nodes.Node, def TypeDef) (nodes.Node
 			p.ThrowTypeError("Operation && can only be used on boolean value.")
 		}
 
-		rhsVal, rhsValDef := p.ParsePartialValue(nil)
+		rhsVal, rhsValDef := p.ParseValue(nil)
 		if !rhsValDef.Equals(GenericTypeDef{TypeBool}) {
 			p.ThrowTypeError("Right hand side of && operation must be a boolean value.")
 		}
@@ -112,6 +156,29 @@ func (p *Parser) ParseLogicalOperator(value nodes.Node, def TypeDef) (nodes.Node
 			LeftSide:  value,
 			RightSide: rhsVal,
 		}, GenericTypeDef{TypeBool}
+
+	case TokenBar:
+		p.ExpectToken(TokenBar)
+
+		if !def.Equals(GenericTypeDef{TypeBool}) {
+			p.ThrowTypeError("Operation || can only be used on boolean value.")
+		}
+
+		rhsVal, rhsValDef := p.ParseValue(nil)
+		if !rhsValDef.Equals(GenericTypeDef{TypeBool}) {
+			p.ThrowTypeError("Right hand side of || operation must be a boolean value.")
+		}
+
+		return &nodes.Or{
+			LeftSide:  value,
+			RightSide: rhsVal,
+		}, GenericTypeDef{TypeBool}
+
+	case TokenAsterisk, TokenForwardSlash, TokenPlus, TokenDash:
+		if !def.IsNumber() {
+			p.ThrowTypeError("Mathematical operations cannot be performed on values that don't represent a number.")
+		}
+		return p.ParseMathsOperations(token.Type, value, def, false)
 	}
 
 	p.lexer.Unread(token)
@@ -120,7 +187,7 @@ func (p *Parser) ParseLogicalOperator(value nodes.Node, def TypeDef) (nodes.Node
 
 // Parses a value of any type, without accounting for logical operations that follow it.
 func (p *Parser) ParsePartialValue(implicitType TypeDef) (nodes.Node, TypeDef) {
-	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse)
+	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse, TokenDash, TokenLeftBracket, TokenNewLine)
 	switch token.Type {
 	case TokenString:
 		return p.ParseValueExpression(&nodes.Value{Value: token.Literal}, GenericTypeDef{TypeString})
@@ -145,19 +212,24 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (nodes.Node, TypeDef) {
 			return p.ParseValueExpression(&nodes.Value{Value: implicitVal}, implicitType)
 		}
 		return p.ParseValueExpression(&nodes.Value{Value: val}, GenericTypeDef{TypeInt64})
+
 	case TokenIdentifier:
 		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
 		if !ok {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
 		return p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
+	case TokenLeftBracket:
+		defer p.ExpectToken(TokenRightBracket)
+		return p.ParseValue(implicitType)
 	}
-	return nil, nil
+	return p.ParseValue(implicitType)
+
 }
 
 // Parses a value of any type, without accounting for operations that follow it.
 //
 // If implicitType is passed, the value will be coerced to the implicit type if possible.
 func (p *Parser) ParseValue(implicitType TypeDef) (nodes.Node, TypeDef) {
-	return p.ParseLogicalOperator(p.ParsePartialValue(implicitType))
+	return p.ParseOperator(p.ParsePartialValue(implicitType))
 }
