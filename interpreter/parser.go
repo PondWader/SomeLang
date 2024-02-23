@@ -20,7 +20,7 @@ func Parse(content string, filePath string, globals map[string]TypeDef) []enviro
 	p := &Parser{
 		lexer:          NewLexer(content),
 		filePath:       filePath,
-		currentTypeEnv: NewTypeEnvironment(nil, nil),
+		currentTypeEnv: NewTypeEnvironment(nil, nil, 0),
 	}
 
 	for name, def := range globals {
@@ -85,8 +85,8 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 	case TokenIfStatement:
 		return p.ParseIfStatement()
 	case TokenIdentifier:
-		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
-		if !ok {
+		typeDef, _ := p.currentTypeEnv.Get(token.Literal)
+		if typeDef == nil {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
 		node, _ := p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)

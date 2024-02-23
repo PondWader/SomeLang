@@ -64,7 +64,8 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 	})*/
 	case TokenLeftSquareBracket:
 	case TokenEquals:
-		if p.lexer.PeekOrExit().Type == TokenEquals { // Comparison
+		// Check for comparison
+		if p.lexer.PeekOrExit().Type == TokenEquals {
 			p.lexer.Next()
 			rhsVal, rhsValDef := p.ParsePartialValue(def)
 			if !rhsValDef.Equals(def) {
@@ -77,15 +78,19 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 			}, GenericTypeDef{TypeBool}
 		}
 
+		// Check for assignment
 		if ident, ok := value.(*nodes.Identifier); ok {
 			newVal, newValDef := p.ParsePartialValue(def)
 			if !def.Equals(newValDef) {
 				p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
 			}
 
+			_, depth := p.currentTypeEnv.Get(ident.Name)
+
 			return &nodes.Assignment{
 				Identifier: ident.Name,
 				NewValue:   newVal,
+				Depth:      depth,
 			}, def
 		} else if _, ok := value.(*nodes.KeyAccess); ok {
 
@@ -215,8 +220,8 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 		return p.ParseValueExpression(&nodes.Value{Value: val}, GenericTypeDef{TypeInt64})
 
 	case TokenIdentifier:
-		typeDef, ok := p.currentTypeEnv.Get(token.Literal).(TypeDef)
-		if !ok {
+		typeDef, _ := p.currentTypeEnv.Get(token.Literal)
+		if typeDef == nil {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
 		return p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)

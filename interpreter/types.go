@@ -54,6 +54,7 @@ func (def GenericTypeDef) IsNumber() bool {
 	return genericType == TypeInt8 || genericType == TypeInt16 || genericType == TypeInt32 || genericType == TypeInt64 || genericType == TypeUint8 || genericType == TypeUint16 || genericType == TypeUint32 || genericType == TypeUint64 || genericType == TypeFloat32 || genericType == TypeFloat64
 }
 
+// TODO: Move this (even find a way to make it not as bad?)
 func getMathsOperationForDef(def TypeDef, operation nodes.MathsOperationType, leftSide environment.Node, rightSide environment.Node) environment.Node {
 	genericType := def.GetGenericType()
 	switch genericType {

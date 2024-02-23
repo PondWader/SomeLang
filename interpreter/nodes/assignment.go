@@ -1,15 +1,18 @@
 package nodes
 
-import "main/interpreter/environment"
+import (
+	"main/interpreter/environment"
+)
 
 type Assignment struct {
 	Identifier string
 	NewValue   environment.Node
+	Depth      int
 }
 
 func (a *Assignment) Eval(env *environment.Environment) any {
 	newVal := a.NewValue.Eval(env)
-	env.Set(a.Identifier, newVal)
+	env.SetWithDepth(a.Identifier, newVal, a.Depth)
 	return newVal
 }
 

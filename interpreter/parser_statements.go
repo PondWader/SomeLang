@@ -24,9 +24,10 @@ func (p *Parser) ParseVarDeclaration() environment.Node {
 
 	p.currentTypeEnv.Set(identifier, valType)
 
-	return &nodes.VarDeclaration{
+	return &nodes.Assignment{
 		Identifier: identifier,
-		Value:      valNode,
+		NewValue:   valNode,
+		Depth:      0,
 	}
 }
 

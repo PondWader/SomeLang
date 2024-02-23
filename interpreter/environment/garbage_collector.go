@@ -1,7 +1,5 @@
 package environment
 
-import "fmt"
-
 type Node interface {
 	// Evaluates the node in a certain execution environment
 	Eval(*Environment) any
@@ -10,10 +8,8 @@ type Node interface {
 }
 
 func (e *Environment) RunGC() {
-	fmt.Println("Running garbage collector")
-
 	// Mark variables that are in use in a hash map
-	inUse := make(map[string]struct{}, 0)
+	inUse := make(map[string]struct{}, len(e.identifiers))
 	for i := e.position + 1; i < len(e.ast); i++ {
 		for _, ref := range e.ast[i].References() {
 			inUse[ref] = struct{}{}
@@ -28,11 +24,8 @@ func (e *Environment) RunGC() {
 	// Sweep identifiers that are out of scope from memory
 	for ident := range e.identifiers {
 		if _, ok := inUse[ident]; !ok {
-			fmt.Println("Sweeped", ident)
 			delete(e.identifiers, ident)
 			delete(e.attachedRefs, ident)
 		}
 	}
-
-	fmt.Println("Finished run of garbage collector")
 }

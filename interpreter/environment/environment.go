@@ -2,6 +2,7 @@ package environment
 
 import "strconv"
 
+// Execution environment handles the storing of values, garbage collection, and evaluation of the AST
 type Environment struct {
 	identifiers map[string]any
 	parent      *Environment
@@ -46,10 +47,9 @@ func (e *Environment) Set(name string, value any) {
 }
 
 // Sets a value in a parent environment with a depth of how many parent environments to go back
-func (e *Environment) SetWithDepth(name string, value any, depth int) {
-	env := e
+func (env *Environment) SetWithDepth(name string, value any, depth int) {
 	for i := 0; i < depth; i++ {
-		env = e.GetParent()
+		env = env.GetParent()
 		if env == nil {
 			panic("Depth is greater than total available depth")
 		}
