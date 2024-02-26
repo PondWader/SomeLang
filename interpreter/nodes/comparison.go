@@ -12,21 +12,27 @@ const (
 	ComparisonLessThanOrEquals
 )
 
-type Comparison struct {
+type Comparison[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64] struct {
 	Type      ComparisonType
 	LeftSide  environment.Node
 	RightSide environment.Node
 }
 
-func (c *Comparison) Eval(env *environment.Environment) any {
+func (c *Comparison[T]) Eval(env *environment.Environment) any {
 	if c.Type == ComparisonEquals {
 		return c.LeftSide.Eval(env) == c.RightSide.Eval(env)
 	} else if c.Type == ComparisonGreaterThan {
-		// c.LeftSide.Eval(env) > c.RightSide.Eval(env)
+		return c.LeftSide.Eval(env).(T) > c.RightSide.Eval(env).(T)
+	} else if c.Type == ComparisonGreaterThanOrEquals {
+		return c.LeftSide.Eval(env).(T) >= c.RightSide.Eval(env).(T)
+	} else if c.Type == ComparisonLessThan {
+		return c.LeftSide.Eval(env).(T) < c.RightSide.Eval(env).(T)
+	} else if c.Type == ComparisonLessThanOrEquals {
+		return c.LeftSide.Eval(env).(T) <= c.RightSide.Eval(env).(T)
 	}
 	return nil
 }
 
-func (c *Comparison) References() []string {
+func (c *Comparison[T]) References() []string {
 	return append(c.RightSide.References(), c.LeftSide.References()...)
 }

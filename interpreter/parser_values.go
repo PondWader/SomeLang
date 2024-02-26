@@ -71,11 +71,7 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 			if !rhsValDef.Equals(def) {
 				p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
 			}
-			return &nodes.Comparison{
-				Type:      nodes.ComparisonEquals,
-				LeftSide:  value,
-				RightSide: rhsVal,
-			}, GenericTypeDef{TypeBool}
+			return GetGenericTypeNode(def).GetComparison(nodes.ComparisonEquals, value, rhsVal), GenericTypeDef{TypeBool}
 		}
 
 		// Check for assignment
@@ -133,7 +129,7 @@ func (p *Parser) ParseMathsOperations(operationType TokenType, value environment
 			rhsVal, _ = p.ParseMathsOperations(token.Type, rhsVal, def, true)
 			token = p.lexer.NextOrExit()
 		}
-		value = getMathsOperationForDef(def, operation, value, rhsVal)
+		value = GetGenericTypeNode(def).GetMathsOperation(operation, value, rhsVal)
 		if token.Type != TokenAsterisk && token.Type != TokenForwardSlash && token.Type != TokenPlus && token.Type != TokenDash {
 			p.lexer.Unread(token)
 			return value, def
