@@ -91,7 +91,7 @@ func (l *Lexer) Next() (Token, error) {
 		ch := l.content[l.cursor : l.cursor+1]
 		l.cursor++
 
-		if ch == " " || ch == "	" {
+		if ch == " " || ch == "\t" || ch == "\r" {
 			continue
 		}
 
