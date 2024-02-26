@@ -51,7 +51,7 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 	if token.Type == TokenForwardSlash {
 		if p.lexer.PeekOrExit().Type == TokenForwardSlash {
 			for {
-				if token, err := p.lexer.Next(); err == nil && token.Type == TokenNewLine {
+				if token, err := p.lexer.Next(); err == nil && token.Type == TokenNewLine || token.Type == TokenEOF {
 					return p.ParseNext(inBlock)
 				}
 			}
