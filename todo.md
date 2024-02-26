@@ -1,4 +1,4 @@
-- Mathematical operations (*, /, +, -) with bidmas
+- Mathematical operations (*, /, +, -) with bidmas (DONE)
 - Comparisons (>, <, >=, <=, !=)
 - Not operator (!)
 - Arrays:

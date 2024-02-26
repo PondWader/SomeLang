@@ -55,13 +55,6 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 			Args:     args,
 			Function: value,
 		}, funcDef.ReturnType)
-	/*case TokenPeriod:
-	p.lexer.Next()
-	identToken := p.ExpectToken(TokenIdentifier)
-	return p.ParseValueExpression(&nodes.KeyAccess{
-		Object: value,
-		Key:    identToken.Literal,
-	})*/
 	case TokenLeftSquareBracket:
 	case TokenEquals:
 		// Check for comparison
@@ -93,6 +86,40 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 		} else {
 			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
 		}
+
+	case TokenGreaterThan, TokenLessThan:
+		if !def.IsNumber() {
+			p.ThrowTypeError("Cannot perform comparison on non-number.")
+		}
+		nextToken := p.lexer.PeekOrExit()
+		var comparison nodes.ComparisonType
+		if token.Type == TokenGreaterThan && nextToken.Type == TokenEquals {
+			p.lexer.Next()
+			comparison = nodes.ComparisonGreaterThanOrEquals
+		} else if token.Type == TokenGreaterThan {
+			comparison = nodes.ComparisonGreaterThan
+		} else if nextToken.Type == TokenEquals {
+			p.lexer.Next()
+			comparison = nodes.ComparisonLessThanOrEquals
+		} else {
+			comparison = nodes.ComparisonLessThan
+		}
+		rhsVal, rhsValDef := p.ParsePartialValue(def)
+		if !rhsValDef.Equals(def) {
+			p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
+		}
+		return GetGenericTypeNode(def).GetComparison(comparison, value, rhsVal), GenericTypeDef{TypeBool}
+
+	case TokenExclamationMark:
+		p.ExpectToken(TokenEquals)
+		p.lexer.Next()
+		rhsVal, rhsValDef := p.ParsePartialValue(def)
+		if !rhsValDef.Equals(def) {
+			p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
+		}
+		return &nodes.Not{
+			Value: GetGenericTypeNode(def).GetComparison(nodes.ComparisonEquals, value, rhsVal),
+		}, GenericTypeDef{TypeBool}
 	}
 	p.lexer.Unread(token)
 	return value, def
