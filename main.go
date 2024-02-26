@@ -29,6 +29,7 @@ func main() {
 		"print": standardlibrary.PrintDef,
 		"input": standardlibrary.InputDef,
 	})
+	fmt.Println("Executing...")
 	interpreter.Execute(ast, *entryPoint, map[string]any{
 		"print": standardlibrary.Print,
 		"input": standardlibrary.Input,

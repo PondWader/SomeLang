@@ -56,81 +56,28 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 			Function: value,
 		}, funcDef.ReturnType)
 	case TokenLeftSquareBracket:
-	case TokenEquals:
-		// Check for comparison
-		if p.lexer.PeekOrExit().Type == TokenEquals {
-			p.lexer.Next()
-			rhsVal, rhsValDef := p.ParsePartialValue(def)
-			if !rhsValDef.Equals(def) {
-				p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
-			}
-			return GetGenericTypeNode(def).GetComparison(nodes.ComparisonEquals, value, rhsVal), GenericTypeDef{TypeBool}
-		}
 
-		// Check for assignment
-		if ident, ok := value.(*nodes.Identifier); ok {
-			newVal, newValDef := p.ParsePartialValue(def)
-			if !def.Equals(newValDef) {
-				p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
-			}
-
-			_, depth := p.currentTypeEnv.Get(ident.Name)
-
-			return &nodes.Assignment{
-				Identifier: ident.Name,
-				NewValue:   newVal,
-				Depth:      depth,
-			}, def
-		} else if _, ok := value.(*nodes.KeyAccess); ok {
-
-		} else {
-			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
-		}
-
-	case TokenGreaterThan, TokenLessThan:
-		if !def.IsNumber() {
-			p.ThrowTypeError("Cannot perform comparison on non-number.")
-		}
-		nextToken := p.lexer.PeekOrExit()
-		var comparison nodes.ComparisonType
-		if token.Type == TokenGreaterThan && nextToken.Type == TokenEquals {
-			p.lexer.Next()
-			comparison = nodes.ComparisonGreaterThanOrEquals
-		} else if token.Type == TokenGreaterThan {
-			comparison = nodes.ComparisonGreaterThan
-		} else if nextToken.Type == TokenEquals {
-			p.lexer.Next()
-			comparison = nodes.ComparisonLessThanOrEquals
-		} else {
-			comparison = nodes.ComparisonLessThan
-		}
-		rhsVal, rhsValDef := p.ParsePartialValue(def)
-		if !rhsValDef.Equals(def) {
-			p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
-		}
-		return GetGenericTypeNode(def).GetComparison(comparison, value, rhsVal), GenericTypeDef{TypeBool}
-
-	case TokenExclamationMark:
-		p.ExpectToken(TokenEquals)
-		p.lexer.Next()
-		rhsVal, rhsValDef := p.ParsePartialValue(def)
-		if !rhsValDef.Equals(def) {
-			p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
-		}
-		return &nodes.Not{
-			Value: GetGenericTypeNode(def).GetComparison(nodes.ComparisonEquals, value, rhsVal),
-		}, GenericTypeDef{TypeBool}
 	}
 	p.lexer.Unread(token)
 	return value, def
 }
 
 // Parses maths operations, respecting the correct order of operations
-func (p *Parser) ParseMathsOperations(operationType TokenType, value environment.Node, def TypeDef, onlyMultiplication bool) (environment.Node, TypeDef) {
+func (p *Parser) ParseMathsOperations(value environment.Node, def TypeDef, onlyMultiplication bool) (environment.Node, TypeDef) {
+	token := p.lexer.NextOrExit()
+	operationType := token.Type
+	if operationType != TokenPlus && operationType != TokenDash && operationType != TokenAsterisk && operationType != TokenForwardSlash {
+		p.lexer.Unread(token)
+		return value, def
+	}
+	if !def.IsNumber() {
+		p.ThrowTypeError("Mathematical operations cannot be performed on values that don't represent a number.")
+	}
+
 	for {
 		rhsVal, rhsDef := p.ParsePartialValue(def)
 		if !rhsDef.Equals(def) {
-			p.ThrowTypeError("Mathematical perations must be performed on values of the same type.")
+			p.ThrowTypeError("Mathematical operations must be performed on values of the same type.")
 		}
 		if onlyMultiplication && operationType != TokenAsterisk && operationType != TokenForwardSlash {
 			return value, def
@@ -153,7 +100,8 @@ func (p *Parser) ParseMathsOperations(operationType TokenType, value environment
 		// Read the next operation
 		token := p.lexer.NextOrExit()
 		if token.Type == TokenAsterisk || token.Type == TokenForwardSlash {
-			rhsVal, _ = p.ParseMathsOperations(token.Type, rhsVal, def, true)
+			p.lexer.Unread(token)
+			rhsVal, _ = p.ParseMathsOperations(rhsVal, def, true)
 			token = p.lexer.NextOrExit()
 		}
 		value = GetGenericTypeNode(def).GetMathsOperation(operation, value, rhsVal)
@@ -203,11 +151,69 @@ func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment
 			RightSide: rhsVal,
 		}, GenericTypeDef{TypeBool}
 
-	case TokenAsterisk, TokenForwardSlash, TokenPlus, TokenDash:
-		if !def.IsNumber() {
-			p.ThrowTypeError("Mathematical operations cannot be performed on values that don't represent a number.")
+	case TokenEquals:
+		// Check for comparison
+		if p.lexer.PeekOrExit().Type == TokenEquals {
+			p.lexer.Next()
+			rhsVal, rhsValDef := p.ParseCalculatedValue(def)
+			if !rhsValDef.Equals(def) {
+				p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
+			}
+			return p.ParseOperator(&nodes.EqualityComparison{LeftSide: value, RightSide: rhsVal}, GenericTypeDef{TypeBool})
 		}
-		return p.ParseMathsOperations(token.Type, value, def, false)
+
+		// Check for assignment
+		if ident, ok := value.(*nodes.Identifier); ok {
+			newVal, newValDef := p.ParseValue(def)
+			if !def.Equals(newValDef) {
+				p.ThrowTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
+			}
+
+			_, depth := p.currentTypeEnv.Get(ident.Name)
+
+			return &nodes.Assignment{
+				Identifier: ident.Name,
+				NewValue:   newVal,
+				Depth:      depth,
+			}, def
+		} else if _, ok := value.(*nodes.KeyAccess); ok {
+
+		} else {
+			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
+		}
+
+	case TokenGreaterThan, TokenLessThan:
+		if !def.IsNumber() {
+			p.ThrowTypeError("Cannot perform comparison on non-number.")
+		}
+		nextToken := p.lexer.PeekOrExit()
+		var comparison nodes.ComparisonType
+		if token.Type == TokenGreaterThan && nextToken.Type == TokenEquals {
+			p.lexer.Next()
+			comparison = nodes.ComparisonGreaterThanOrEquals
+		} else if token.Type == TokenGreaterThan {
+			comparison = nodes.ComparisonGreaterThan
+		} else if nextToken.Type == TokenEquals {
+			p.lexer.Next()
+			comparison = nodes.ComparisonLessThanOrEquals
+		} else {
+			comparison = nodes.ComparisonLessThan
+		}
+		rhsVal, rhsValDef := p.ParseCalculatedValue(def)
+		if !rhsValDef.Equals(def) {
+			p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
+		}
+		return p.ParseOperator(GetGenericTypeNode(def).GetInequalityComparison(comparison, value, rhsVal), GenericTypeDef{TypeBool})
+
+	case TokenExclamationMark:
+		p.ExpectToken(TokenEquals)
+		rhsVal, rhsValDef := p.ParseValue(def)
+		if !rhsValDef.Equals(def) {
+			p.ThrowTypeError("Right hand side of comparison must be the same type as the left hand side.")
+		}
+		return p.ParseOperator(&nodes.Not{
+			Value: &nodes.EqualityComparison{LeftSide: value, RightSide: rhsVal},
+		}, GenericTypeDef{TypeBool})
 	}
 
 	p.lexer.Unread(token)
@@ -216,7 +222,7 @@ func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment
 
 // Parses a value of any type, without accounting for logical operations that follow it.
 func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, TypeDef) {
-	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse, TokenDash, TokenLeftBracket, TokenNewLine)
+	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse, TokenDash, TokenLeftBracket, TokenNewLine, TokenExclamationMark)
 	switch token.Type {
 	case TokenString:
 		return p.ParseValueExpression(&nodes.Value{Value: token.Literal}, GenericTypeDef{TypeString})
@@ -230,15 +236,19 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 			p.lexer.Next()
 			decimalNum := p.ExpectToken(TokenNumber)
 			val, _ := strconv.ParseFloat(token.Literal+"."+decimalNum.Literal, 64)
-			if implicitVal := ConvertFloat64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
-				return &nodes.Value{Value: implicitVal}, implicitType
+			if implicitType != nil {
+				if implicitVal := ConvertFloat64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
+					return &nodes.Value{Value: implicitVal}, implicitType
+				}
 			}
 			return p.ParseValueExpression(&nodes.Value{Value: val}, GenericTypeDef{TypeFloat64})
 		}
 		val, _ := strconv.ParseInt(token.Literal, 10, 64)
 
-		if implicitVal := ConvertInt64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
-			return p.ParseValueExpression(&nodes.Value{Value: implicitVal}, implicitType)
+		if implicitType != nil {
+			if implicitVal := ConvertInt64ToTypeDef(val, implicitType.GetGenericType()); implicitVal != nil {
+				return p.ParseValueExpression(&nodes.Value{Value: implicitVal}, implicitType)
+			}
 		}
 		return p.ParseValueExpression(&nodes.Value{Value: val}, GenericTypeDef{TypeInt64})
 
@@ -251,14 +261,24 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 	case TokenLeftBracket:
 		defer p.ExpectToken(TokenRightBracket)
 		return p.ParseValue(implicitType)
+	case TokenExclamationMark:
+		val, def := p.ParseValue(nil)
+		if def.GetGenericType() != TypeBool {
+			p.ThrowTypeError("Not operator must be used on a boolean value.")
+		}
+		return &nodes.Not{Value: val}, GenericTypeDef{TypeBool}
 	}
 	return p.ParseValue(implicitType)
-
 }
 
-// Parses a value of any type, without accounting for operations that follow it.
+func (p *Parser) ParseCalculatedValue(implicitType TypeDef) (environment.Node, TypeDef) {
+	val, def := p.ParsePartialValue(implicitType)
+	return p.ParseMathsOperations(val, def, false)
+}
+
+// Parses a value of any type, accounting for operations that follow it.
 //
 // If implicitType is passed, the value will be coerced to the implicit type if possible.
 func (p *Parser) ParseValue(implicitType TypeDef) (environment.Node, TypeDef) {
-	return p.ParseOperator(p.ParsePartialValue(implicitType))
+	return p.ParseOperator(p.ParseCalculatedValue(implicitType))
 }

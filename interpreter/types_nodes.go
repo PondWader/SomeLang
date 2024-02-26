@@ -9,7 +9,7 @@ import (
 // ahead of time to perform the operation
 type TypeNodeGenerator interface {
 	GetMathsOperation(operation nodes.MathsOperationType, leftSide environment.Node, rightSide environment.Node) environment.Node
-	GetComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node
+	GetInequalityComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node
 }
 
 func GetGenericTypeNode(def TypeDef) TypeNodeGenerator {
@@ -50,8 +50,8 @@ func (tn TypeNodeGeneratorImpl[T]) GetMathsOperation(operation nodes.MathsOperat
 	}
 }
 
-func (tn TypeNodeGeneratorImpl[T]) GetComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node {
-	return &nodes.Comparison[T]{
+func (tn TypeNodeGeneratorImpl[T]) GetInequalityComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node {
+	return &nodes.InequalityComparison[T]{
 		Type:      comparison,
 		LeftSide:  leftSide,
 		RightSide: rightSide,

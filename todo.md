@@ -1,5 +1,5 @@
 - Mathematical operations (*, /, +, -) with bidmas (DONE)
-- Comparisons (>, <, >=, <=, !=)
+- Comparisons (>, <, >=, <=, !=) (DONE)
 - Not operator (!)
 - Arrays:
 ```

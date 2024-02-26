@@ -12,13 +12,13 @@ const (
 	ComparisonLessThanOrEquals
 )
 
-type Comparison[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64] struct {
+type InequalityComparison[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64] struct {
 	Type      ComparisonType
 	LeftSide  environment.Node
 	RightSide environment.Node
 }
 
-func (c *Comparison[T]) Eval(env *environment.Environment) any {
+func (c *InequalityComparison[T]) Eval(env *environment.Environment) any {
 	if c.Type == ComparisonEquals {
 		return c.LeftSide.Eval(env) == c.RightSide.Eval(env)
 	} else if c.Type == ComparisonGreaterThan {
@@ -33,6 +33,6 @@ func (c *Comparison[T]) Eval(env *environment.Environment) any {
 	return nil
 }
 
-func (c *Comparison[T]) References() []string {
+func (c *InequalityComparison[T]) References() []string {
 	return append(c.RightSide.References(), c.LeftSide.References()...)
 }
