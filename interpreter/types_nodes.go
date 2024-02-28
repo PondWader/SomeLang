@@ -12,6 +12,8 @@ type TypeNodeGenerator interface {
 	GetInequalityComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node
 	GetArrayInitialization(elements []environment.Node) environment.Node
 	GetArrayIndex(array environment.Node, index environment.Node) environment.Node
+	GetArrayAssignment(array environment.Node, index environment.Node, value environment.Node) environment.Node
+	ArrayIndexDetails(node environment.Node) (array environment.Node, index environment.Node, ok bool)
 }
 
 func GetGenericTypeNode(def TypeDef) TypeNodeGenerator {
@@ -52,11 +54,25 @@ func (tn TypeNodeGeneratorAny[T]) GetArrayInitialization(elements []environment.
 		Elements: elements,
 	}
 }
+
 func (tn TypeNodeGeneratorAny[T]) GetArrayIndex(array environment.Node, index environment.Node) environment.Node {
 	return &nodes.ArrayIndex[T]{
 		Array: array,
 		Index: index,
 	}
+}
+
+func (tn TypeNodeGeneratorAny[T]) GetArrayAssignment(array environment.Node, index environment.Node, value environment.Node) environment.Node {
+	return &nodes.ArrayAssignment[T]{
+		Array: array,
+		Index: index,
+		Value: value,
+	}
+}
+
+func (tn TypeNodeGeneratorAny[T]) ArrayIndexDetails(node environment.Node) (array environment.Node, index environment.Node, ok bool) {
+	val, ok := node.(*nodes.ArrayIndex[T])
+	return val.Array, val.Index, ok
 }
 
 func (tn TypeNodeGeneratorAny[T]) GetMathsOperation(operation nodes.MathsOperationType, leftSide environment.Node, rightSide environment.Node) environment.Node {

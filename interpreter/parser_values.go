@@ -186,8 +186,13 @@ func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment
 				NewValue:   newVal,
 				Depth:      depth,
 			}, def
-		} else if _, ok := value.(*nodes.ArrayIndex[any]); ok {
-
+		} else if arrayNode, indexNode, ok := GetGenericTypeNode(def).ArrayIndexDetails(value); ok {
+			// Assignment to element of array
+			newVal, newValDef := p.ParseValue(def)
+			if !newValDef.Equals(def) {
+				p.ThrowTypeError("Incorrect type in array element assignment.")
+			}
+			return GetGenericTypeNode(def).GetArrayAssignment(arrayNode, indexNode, newVal), def
 		} else {
 			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
 		}

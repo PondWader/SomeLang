@@ -89,7 +89,7 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 		if typeDef == nil {
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
-		node, _ := p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
+		node, _ := p.ParseOperator(p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef))
 		return node
 	case TokenReturnStatement:
 		returnType := p.currentTypeEnv.GetReturnType()
