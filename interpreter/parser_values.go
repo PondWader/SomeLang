@@ -55,8 +55,18 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 			Args:     args,
 			Function: value,
 		}, funcDef.ReturnType)
-	case TokenLeftSquareBracket:
 
+	case TokenLeftSquareBracket:
+		index, indexDef := p.ParseValue(nil)
+		if !indexDef.IsNumber() {
+			p.ThrowTypeError("Arrays must be indexed with a number value")
+		}
+		arrayDef, ok := def.(ArrayDef)
+		if !ok {
+			p.ThrowTypeError("Cannot access index on non-array value")
+		}
+		p.ExpectToken(TokenRightSquareBracket)
+		return GetGenericTypeNode(arrayDef.ElementType).GetArrayIndex(value, index), arrayDef.ElementType
 	}
 	p.lexer.Unread(token)
 	return value, def
@@ -176,7 +186,7 @@ func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment
 				NewValue:   newVal,
 				Depth:      depth,
 			}, def
-		} else if _, ok := value.(*nodes.KeyAccess); ok {
+		} else if _, ok := value.(*nodes.ArrayIndex[any]); ok {
 
 		} else {
 			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
@@ -222,7 +232,7 @@ func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment
 
 // Parses a value of any type, without accounting for logical operations that follow it.
 func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, TypeDef) {
-	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse, TokenDash, TokenLeftBracket, TokenNewLine, TokenExclamationMark)
+	token := p.ExpectToken(TokenString, TokenNumber, TokenIdentifier, TokenTrue, TokenFalse, TokenDash, TokenLeftBracket, TokenLeftSquareBracket, TokenNewLine, TokenExclamationMark)
 	switch token.Type {
 	case TokenString:
 		return p.ParseValueExpression(&nodes.Value{Value: token.Literal}, GenericTypeDef{TypeString})
@@ -258,15 +268,60 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 			p.ThrowTypeError(token.Literal, " is not defined in this scope.")
 		}
 		return p.ParseValueExpression(&nodes.Identifier{Name: token.Literal}, typeDef)
+
 	case TokenLeftBracket:
 		defer p.ExpectToken(TokenRightBracket)
 		return p.ParseValue(implicitType)
+
 	case TokenExclamationMark:
 		val, def := p.ParseValue(nil)
 		if def.GetGenericType() != TypeBool {
 			p.ThrowTypeError("Not operator must be used on a boolean value.")
 		}
 		return &nodes.Not{Value: val}, GenericTypeDef{TypeBool}
+
+	case TokenLeftSquareBracket:
+		var elements []environment.Node
+		var elementType TypeDef
+		size := -1
+		if implicitType != nil && implicitType.GetGenericType() == TypeArray {
+			size = implicitType.(ArrayDef).Size
+			elements = make([]environment.Node, size)
+			elementType = implicitType.(ArrayDef).ElementType
+		} else {
+			elements = make([]environment.Node, 0)
+		}
+		for position := 0; ; position++ {
+			if p.lexer.PeekOrExit().Type == TokenRightBracket {
+				p.lexer.Next()
+				break
+			}
+			element, def := p.ParseValue(elementType)
+			if elementType == nil {
+				elementType = def
+			} else if !def.Equals(elementType) {
+				p.ThrowTypeError("Incorrect type for element of array.")
+			}
+			if size != -1 && position == size {
+				p.ThrowTypeError("Maximum number of elements in array reached.")
+			} else if size == -1 {
+				// If the array is an unkown size we need to append to it
+				elements = append(elements, element)
+			} else {
+				// If the array is a fixed size, all of the elements should already have been created
+				elements[position] = element
+			}
+
+			if token = p.ExpectToken(TokenComma, TokenRightSquareBracket); token.Type == TokenRightSquareBracket {
+				break
+			}
+		}
+		if elementType == nil {
+			// Since if the program has no specified type for the array and there are no elements to implicitly
+			// get the type from, an array with no elements and no explicit type definition is not allowed.
+			p.ThrowTypeError("An array of an unkown type cannot have 0 elements")
+		}
+		return GetGenericTypeNode(elementType).GetArrayInitialization(elements), ArrayDef{GenericTypeDef: GenericTypeDef{TypeArray}, ElementType: elementType, Size: size}
 	}
 	return p.ParseValue(implicitType)
 }

@@ -90,6 +90,7 @@ func (def MapDef) Equals(other TypeDef) bool {
 type ArrayDef struct {
 	GenericTypeDef
 	ElementType TypeDef
+	Size        int
 }
 
 func (def ArrayDef) Equals(other TypeDef) bool {

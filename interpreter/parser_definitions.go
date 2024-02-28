@@ -1,5 +1,7 @@
 package interpreter
 
+import "strconv"
+
 func (p *Parser) ParseFunctionDef() (name string, argDefs []TypeDef, argNames []string, returnType TypeDef) {
 	name = p.ExpectToken(TokenIdentifier).Literal
 	p.ExpectToken(TokenLeftBracket)
@@ -33,7 +35,7 @@ func (p *Parser) ParseFunctionDef() (name string, argDefs []TypeDef, argNames []
 
 func (p *Parser) ParseTypeDef() TypeDef {
 	// Expect a token of a type
-	token := p.ExpectToken(TokenTypeInt8, TokenTypeInt16, TokenTypeInt32, TokenTypeInt64, TokenTypeUint8, TokenTypeUint16, TokenTypeUint32, TokenTypeUint64, TokenTypeFloat32, TokenTypeFloat64, TokenTypeString, TokenTypeBool, TokenTypeMap, TokenFunctionDeclaration)
+	token := p.ExpectToken(TokenTypeInt8, TokenTypeInt16, TokenTypeInt32, TokenTypeInt64, TokenTypeUint8, TokenTypeUint16, TokenTypeUint32, TokenTypeUint64, TokenTypeFloat32, TokenTypeFloat64, TokenTypeString, TokenTypeBool, TokenTypeMap, TokenLeftSquareBracket, TokenFunctionDeclaration)
 
 	var typeDef TypeDef
 	switch token.Type {
@@ -58,20 +60,25 @@ func (p *Parser) ParseTypeDef() TypeDef {
 			valueType,
 		}
 
+	case TokenLeftSquareBracket:
+		token = p.ExpectToken(TokenRightSquareBracket, TokenNumber)
+		size := -1
+		if token.Type == TokenNumber {
+			size, _ = strconv.Atoi(token.Literal)
+			if size < 0 {
+				p.ThrowSyntaxError("Size of array must be greater than or equal to 0")
+			}
+			p.ExpectToken(TokenRightSquareBracket)
+		}
+		typeDef = ArrayDef{
+			GenericTypeDef: GenericTypeDef{TypeArray},
+			ElementType:    p.ParseTypeDef(),
+			Size:           size,
+		}
+
 	default:
 		typeDef = GenericTypeDef{
 			Type: TypeTokenToPrimitiveType(token),
-		}
-	}
-
-	// Check for array (type followed by [])
-	token = p.lexer.PeekOrExit()
-	if token.Type == TokenLeftSquareBracket {
-		p.lexer.Next()
-		p.ExpectToken(TokenRightSquareBracket)
-		return ArrayDef{
-			GenericTypeDef{TypeArray},
-			typeDef,
 		}
 	}
 

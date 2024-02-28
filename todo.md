@@ -1,10 +1,12 @@
 - Mathematical operations (*, /, +, -) with bidmas (DONE)
 - Comparisons (>, <, >=, <=, !=) (DONE)
-- Not operator (!)
+- Not operator (!) (DONE)
 - Arrays:
 ```
 var arr = ["a", "b", "c"]
 var arr [5]string = [] // 5 empty strings
+arr[0] // Access
+arr[0] = "d" // Assignment
 ```
 - Structs
 ```

@@ -10,39 +10,69 @@ import (
 type TypeNodeGenerator interface {
 	GetMathsOperation(operation nodes.MathsOperationType, leftSide environment.Node, rightSide environment.Node) environment.Node
 	GetInequalityComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node
+	GetArrayInitialization(elements []environment.Node) environment.Node
+	GetArrayIndex(array environment.Node, index environment.Node) environment.Node
 }
 
 func GetGenericTypeNode(def TypeDef) TypeNodeGenerator {
 	genericType := def.GetGenericType()
 	switch genericType {
+	case TypeString:
+		return TypeNodeGeneratorAny[string]{}
+	case TypeBool:
+		return TypeNodeGeneratorAny[bool]{}
 	case TypeInt8:
-		return TypeNodeGeneratorImpl[int8]{}
+		return TypeNodeGeneratorNumber[int8]{}
 	case TypeInt16:
-		return TypeNodeGeneratorImpl[int16]{}
+		return TypeNodeGeneratorNumber[int16]{}
 	case TypeInt32:
-		return TypeNodeGeneratorImpl[int32]{}
+		return TypeNodeGeneratorNumber[int32]{}
 	case TypeInt64:
-		return TypeNodeGeneratorImpl[int64]{}
+		return TypeNodeGeneratorNumber[int64]{}
 	case TypeUint8:
-		return TypeNodeGeneratorImpl[uint8]{}
+		return TypeNodeGeneratorNumber[uint8]{}
 	case TypeUint16:
-		return TypeNodeGeneratorImpl[uint16]{}
+		return TypeNodeGeneratorNumber[uint16]{}
 	case TypeUint32:
-		return TypeNodeGeneratorImpl[uint32]{}
+		return TypeNodeGeneratorNumber[uint32]{}
 	case TypeUint64:
-		return TypeNodeGeneratorImpl[uint64]{}
+		return TypeNodeGeneratorNumber[uint64]{}
 	case TypeFloat32:
-		return TypeNodeGeneratorImpl[float32]{}
+		return TypeNodeGeneratorNumber[float32]{}
 	case TypeFloat64:
-		return TypeNodeGeneratorImpl[float64]{}
+		return TypeNodeGeneratorNumber[float64]{}
 	}
 	return nil
 }
 
-// Implementation of TypeNodeGenerator with generic types
-type TypeNodeGeneratorImpl[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64] struct{}
+type TypeNodeGeneratorAny[T any] struct{}
 
-func (tn TypeNodeGeneratorImpl[T]) GetMathsOperation(operation nodes.MathsOperationType, leftSide environment.Node, rightSide environment.Node) environment.Node {
+func (tn TypeNodeGeneratorAny[T]) GetArrayInitialization(elements []environment.Node) environment.Node {
+	return &nodes.ArrayInitialization[T]{
+		Elements: elements,
+	}
+}
+func (tn TypeNodeGeneratorAny[T]) GetArrayIndex(array environment.Node, index environment.Node) environment.Node {
+	return &nodes.ArrayIndex[T]{
+		Array: array,
+		Index: index,
+	}
+}
+
+func (tn TypeNodeGeneratorAny[T]) GetMathsOperation(operation nodes.MathsOperationType, leftSide environment.Node, rightSide environment.Node) environment.Node {
+	panic("Cannot get maths operation on a non-number type")
+}
+
+func (tn TypeNodeGeneratorAny[T]) GetInequalityComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node {
+	panic("Cannot get inequalty comparison on a non-number type")
+}
+
+// Implementation of TypeNodeGenerator with generic types
+type TypeNodeGeneratorNumber[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64] struct {
+	TypeNodeGeneratorAny[T]
+}
+
+func (tn TypeNodeGeneratorNumber[T]) GetMathsOperation(operation nodes.MathsOperationType, leftSide environment.Node, rightSide environment.Node) environment.Node {
 	return &nodes.MathsOperation[T]{
 		Operation: operation,
 		LeftSide:  leftSide,
@@ -50,7 +80,7 @@ func (tn TypeNodeGeneratorImpl[T]) GetMathsOperation(operation nodes.MathsOperat
 	}
 }
 
-func (tn TypeNodeGeneratorImpl[T]) GetInequalityComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node {
+func (tn TypeNodeGeneratorNumber[T]) GetInequalityComparison(comparison nodes.ComparisonType, leftSide environment.Node, rightSide environment.Node) environment.Node {
 	return &nodes.InequalityComparison[T]{
 		Type:      comparison,
 		LeftSide:  leftSide,
