@@ -94,7 +94,7 @@ func (e *Environment) AttachReferences(name string, refs []string) {
 }
 
 func (e *Environment) Panic(msg ...any) {
-	fmt.Println("panic:", msg)
+	fmt.Println(append([]any{"panic:"}, msg...)...)
 	// TODO: Stack trace
 	os.Exit(1)
 }
