@@ -64,8 +64,10 @@ func (tn TypeNodeGeneratorAny[T]) GetArrayIndex(array environment.Node, index en
 
 func (tn TypeNodeGeneratorAny[T]) GetArrayAssignment(array environment.Node, index environment.Node, value environment.Node) environment.Node {
 	return &nodes.ArrayAssignment[T]{
-		Array: array,
-		Index: index,
+		ArrayIndex: &nodes.ArrayIndex[T]{
+			Array: array,
+			Index: index,
+		},
 		Value: value,
 	}
 }

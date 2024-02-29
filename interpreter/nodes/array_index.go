@@ -1,16 +1,44 @@
 package nodes
 
-import "main/interpreter/environment"
+import (
+	"main/interpreter/environment"
+	"reflect"
+)
 
-type ArrayIndex[T any] struct {
+type ArrayIndex[Element any] struct {
 	Array environment.Node
 	Index environment.Node
 }
 
-func (n *ArrayIndex[T]) Eval(env *environment.Environment) any {
-	return n.Array.Eval(env).([]T)[n.Index.Eval(env).(int64)]
+func (n *ArrayIndex[E]) Eval(env *environment.Environment) any {
+	array, index := n.GetArrayAndValidatedIndex(env)
+	return array[index]
 }
 
-func (n *ArrayIndex[T]) References() []string {
+func (n *ArrayIndex[E]) References() []string {
 	return append(n.Array.References(), n.Index.References()...)
+}
+
+func (n *ArrayIndex[E]) GetArrayAndValidatedIndex(env *environment.Environment) ([]E, uint64) {
+	index := n.GetIndexVal(env)
+	array := n.Array.Eval(env).([]E)
+	if index > uint64(len(array)) {
+		env.Panic("Index out of array bounds")
+	}
+	return array, index
+}
+
+func (n *ArrayIndex[T]) GetIndexVal(env *environment.Environment) uint64 {
+	indexVal := reflect.ValueOf(n.Index.Eval(env))
+	indexKind := indexVal.Kind()
+	// Check if index is signed integer or unsigned
+	if indexKind == reflect.Int || indexKind == reflect.Int16 || indexKind == reflect.Int32 || indexKind == reflect.Int64 {
+		index := indexVal.Int()
+		if index < 0 {
+			env.Panic("Array index cannot be less than 0")
+		}
+		return uint64(index)
+	} else {
+		return indexVal.Uint()
+	}
 }

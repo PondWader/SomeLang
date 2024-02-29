@@ -1,6 +1,10 @@
 package environment
 
-import "strconv"
+import (
+	"fmt"
+	"os"
+	"strconv"
+)
 
 // Execution environment handles the storing of values, garbage collection, and evaluation of the AST
 type Environment struct {
@@ -87,4 +91,10 @@ func (e *Environment) Execute() {
 // This allows the garbage collector to mark identifiers relied on by another identifier as in use.
 func (e *Environment) AttachReferences(name string, refs []string) {
 	e.attachedRefs[name] = refs
+}
+
+func (e *Environment) Panic(msg ...any) {
+	fmt.Println("panic:", msg)
+	// TODO: Stack trace
+	os.Exit(1)
 }
