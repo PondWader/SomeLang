@@ -26,6 +26,7 @@ const (
 type TypeDef interface {
 	GetGenericType() GenericType
 	Equals(TypeDef) bool
+	IsInteger() bool
 	IsNumber() bool
 }
 
@@ -44,9 +45,14 @@ func (def GenericTypeDef) Equals(other TypeDef) bool {
 	return def == other.(GenericTypeDef)
 }
 
+func (def GenericTypeDef) IsInteger() bool {
+	genericType := def.GetGenericType()
+	return genericType == TypeInt8 || genericType == TypeInt16 || genericType == TypeInt32 || genericType == TypeInt64 || genericType == TypeUint8 || genericType == TypeUint16 || genericType == TypeUint32 || genericType == TypeUint64
+}
+
 func (def GenericTypeDef) IsNumber() bool {
 	genericType := def.GetGenericType()
-	return genericType == TypeInt8 || genericType == TypeInt16 || genericType == TypeInt32 || genericType == TypeInt64 || genericType == TypeUint8 || genericType == TypeUint16 || genericType == TypeUint32 || genericType == TypeUint64 || genericType == TypeFloat32 || genericType == TypeFloat64
+	return def.IsInteger() || genericType == TypeFloat32 || genericType == TypeFloat64
 }
 
 type FuncDef struct {

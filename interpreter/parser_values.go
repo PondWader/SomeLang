@@ -58,8 +58,8 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 
 	case TokenLeftSquareBracket:
 		index, indexDef := p.ParseValue(nil)
-		if !indexDef.IsNumber() {
-			p.ThrowTypeError("Arrays must be indexed with a number value")
+		if !indexDef.IsInteger() {
+			p.ThrowTypeError("Arrays must be indexed with an integer value")
 		}
 		arrayDef, ok := def.(ArrayDef)
 		if !ok {
