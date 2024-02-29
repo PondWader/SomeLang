@@ -124,7 +124,7 @@ func (l *Lexer) Next() (Token, error) {
 			endOfToken = true
 		} else {
 			nextCh := l.content[l.cursor : l.cursor+1]
-			if nextCh == "" || nextCh == " " || nextCh == "\n" || nextCh == "	" || nextCh == "\"" {
+			if nextCh == "" || nextCh == " " || nextCh == "\n" || nextCh == "\r" || nextCh == "\t" || nextCh == "\"" {
 				endOfToken = true
 			} else if _, err := getCharTokenType(nextCh); err == nil {
 				endOfToken = true
