@@ -17,5 +17,5 @@ func (a *Assignment) Eval(env *environment.Environment) any {
 }
 
 func (a *Assignment) References() []string {
-	return []string{a.Identifier}
+	return append(a.NewValue.References(), a.Identifier)
 }
