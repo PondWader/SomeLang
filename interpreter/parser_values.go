@@ -67,6 +67,9 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 		}
 		p.ExpectToken(TokenRightSquareBracket)
 		return GetGenericTypeNode(arrayDef.ElementType).GetArrayIndex(value, index), arrayDef.ElementType
+
+	case TokenLeftBrace:
+
 	}
 	p.lexer.Unread(token)
 	return value, def
@@ -291,7 +294,11 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 		size := -1
 		if implicitType != nil && implicitType.GetGenericType() == TypeArray {
 			size = implicitType.(ArrayDef).Size
-			elements = make([]environment.Node, size)
+			if size == -1 {
+				elements = make([]environment.Node, 0)
+			} else {
+				elements = make([]environment.Node, size)
+			}
 			elementType = implicitType.(ArrayDef).ElementType
 		} else {
 			elements = make([]environment.Node, 0)
