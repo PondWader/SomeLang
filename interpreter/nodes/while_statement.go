@@ -10,7 +10,7 @@ type WhileStatement struct {
 }
 
 func (n *WhileStatement) Eval(env *environment.Environment) any {
-	for n.Condition.Eval(env).(bool) && !env.IsBroken {
+	for !env.IsBroken && n.Condition.Eval(env).(bool) {
 		childEnv := env.NewChild(environment.Call{})
 		n.Inner.Eval(childEnv)
 	}
