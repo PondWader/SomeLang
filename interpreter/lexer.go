@@ -19,12 +19,15 @@ const (
 	TokenIfStatement TokenType = iota
 	TokenElseStatement
 	TokenFunctionDeclaration
-	TokenClassDeclaration
 	TokenImportStatement
 	TokenExportStatement
 	TokenForStatement
 	TokenVarDeclaration
 	TokenReturnStatement
+	TokenStructDeclaration
+	TokenAsStatement
+	TokenRangeStatement
+	TokenWhileStatement
 
 	// Values
 	TokenTrue
@@ -228,5 +231,28 @@ func (l *Lexer) Unread(token Token) {
 		l.cursor -= 2 // Account for quotation marks on either side
 	} else if token.Type == TokenNewLine {
 		l.currentLine--
+	}
+}
+
+type LexerPos struct {
+	Cursor int
+	Line   int
+	lexer  *Lexer
+}
+
+func (l *Lexer) SavePos() LexerPos {
+	return LexerPos{l.cursor, l.currentLine, l}
+}
+
+func (pos LexerPos) GoTo() (undo func()) {
+	originalLine := pos.lexer.currentLine
+	originalCursor := pos.lexer.cursor
+
+	pos.lexer.currentLine = pos.Line
+	pos.lexer.cursor = pos.Cursor
+
+	return func() {
+		pos.lexer.currentLine = originalLine
+		pos.lexer.cursor = originalCursor
 	}
 }

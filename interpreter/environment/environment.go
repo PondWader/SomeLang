@@ -12,8 +12,10 @@ type Environment struct {
 	parent      *Environment
 	// call stores which function call initialized the environment
 	Call Call
-	// return can store a callback that returns a value in a function call
-	Return func(any)
+
+	returnCallback func(any)
+	// Public value of whether or not loops are broken and should exit (e.g. after a return or break statement)
+	IsBroken bool
 
 	ast          []Node
 	position     int
@@ -26,12 +28,11 @@ type Call struct {
 	FunctionName string
 }
 
-func New(parent *Environment, ast []Node, call Call) *Environment {
+func New(parent *Environment, call Call) *Environment {
 	return &Environment{
 		identifiers:  make(map[string]any),
 		parent:       parent,
 		Call:         call,
-		ast:          ast,
 		attachedRefs: make(map[string][]string),
 	}
 }
@@ -62,8 +63,8 @@ func (env *Environment) SetWithDepth(name string, value any, depth int) {
 }
 
 func (e *Environment) NewChild(call Call) *Environment {
-	child := New(e, nil, call)
-	child.Return = e.Return
+	child := New(e, call)
+	child.SetReturnCallback(e.returnCallback)
 	return child
 }
 
@@ -72,19 +73,34 @@ func (e *Environment) GetParent() *Environment {
 }
 
 func (e *Environment) GetCallStackOutput() string {
-	output := "File, " + e.Call.File + ", Line, " + strconv.Itoa(e.Call.Line) + ", In " + e.Call.FunctionName
+	output := "\tFile: " + e.Call.File + ", Line: " + strconv.Itoa(e.Call.Line) + ", In " + e.Call.FunctionName
 	if e.parent != nil {
 		output += "\n" + e.parent.GetCallStackOutput()
 	}
 	return output
 }
 
-func (e *Environment) Execute() {
-	for i, node := range e.ast {
+func (e *Environment) Execute(ast []Node) {
+	e.ast = ast
+	for i, node := range ast {
+		if e.IsBroken {
+			return
+		}
 		e.position = i
 		node.Eval(e)
 		e.RunGC()
 	}
+}
+
+func (e *Environment) SetReturnCallback(cb func(v any)) {
+	e.returnCallback = func(v any) {
+		e.IsBroken = true
+		cb(v)
+	}
+}
+
+func (e *Environment) Return(v any) {
+	e.returnCallback(v)
 }
 
 // Declares references attached to a certain identifier.
@@ -95,6 +111,6 @@ func (e *Environment) AttachReferences(name string, refs []string) {
 
 func (e *Environment) Panic(msg ...any) {
 	fmt.Println(append([]any{"panic:"}, msg...)...)
-	// TODO: Stack trace
+	fmt.Println(e.GetCallStackOutput())
 	os.Exit(1)
 }

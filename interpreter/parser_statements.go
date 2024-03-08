@@ -82,3 +82,41 @@ func (p *Parser) ParseIfStatement() environment.Node {
 		Else:      elseNode,
 	}
 }
+
+func (p *Parser) ParseImportStatement() environment.Node {
+	modulePath := p.ExpectToken(TokenString).Literal
+
+	module := p.modules[modulePath]
+	if module == nil {
+		p.ThrowSyntaxError("Module \"", modulePath, "\" does not exist")
+	}
+	moduleName := modulePath
+	if token := p.lexer.NextOrExit(); token.Type == TokenAsStatement {
+		moduleName = p.ExpectToken(TokenIdentifier).Literal
+	} else {
+		p.lexer.Unread(token)
+	}
+
+	p.currentTypeEnv.Set(moduleName, ModuleDef{
+		GenericTypeDef: GenericTypeDef{TypeModule},
+		Properties:     module,
+	})
+	return nil
+}
+
+func (p *Parser) ParseForStatement() environment.Node {
+	p.ExpectToken(TokenIdentifier)
+
+	return nil
+}
+
+func (p *Parser) ParseWhileStatement() environment.Node {
+	val, def := p.ParseValue(GenericTypeDef{TypeBool})
+	if !def.Equals(GenericTypeDef{TypeBool}) {
+		p.ThrowTypeError("Value in while statement must be of type boolean")
+	}
+	return &nodes.WhileStatement{
+		Condition: val,
+		Inner:     p.ParseBlock(map[string]TypeDef{}, nil),
+	}
+}

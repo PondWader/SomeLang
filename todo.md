@@ -5,9 +5,12 @@
 ```
 var arr = ["a", "b", "c"]
 var arr [5]string = [] // 5 empty strings
+var arr []string = ["abc"] // Unkown size array
 arr[0] // Access
 arr[0] = "d" // Assignment
 ```
+(DONE)
+- Maps
 - Structs
 ```
 struct Pet {

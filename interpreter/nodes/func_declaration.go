@@ -1,6 +1,8 @@
 package nodes
 
-import "main/interpreter/environment"
+import (
+	"main/interpreter/environment"
+)
 
 type FuncDeclaration struct {
 	Name     string
@@ -12,7 +14,7 @@ type FuncDeclaration struct {
 func (fd *FuncDeclaration) Eval(env *environment.Environment) any {
 	fn := func(args ...any) any {
 		innerEnv := env.NewChild(environment.Call{
-			FunctionName: fd.Name,
+			FunctionName: fd.Name + "()",
 			File:         env.Call.File,
 			Line:         fd.Line,
 		})
@@ -22,9 +24,9 @@ func (fd *FuncDeclaration) Eval(env *environment.Environment) any {
 		}
 
 		var returnVal any
-		innerEnv.Return = func(v any) {
+		innerEnv.SetReturnCallback(func(v any) {
 			returnVal = v
-		}
+		})
 
 		fd.Inner.Eval(innerEnv)
 

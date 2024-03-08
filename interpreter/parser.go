@@ -13,14 +13,16 @@ type Parser struct {
 	lexer          *Lexer
 	filePath       string
 	currentTypeEnv *TypeEnvironment
+	modules        map[string]map[string]TypeDef
 }
 
 // Creates abstract syntax tree
-func Parse(content string, filePath string, globals map[string]TypeDef) []environment.Node {
+func Parse(content string, filePath string, globals map[string]TypeDef, modules map[string]map[string]TypeDef) []environment.Node {
 	p := &Parser{
 		lexer:          NewLexer(content),
 		filePath:       filePath,
 		currentTypeEnv: NewTypeEnvironment(nil, nil, 0),
+		modules:        modules,
 	}
 
 	for name, def := range globals {
@@ -101,11 +103,18 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 		if !returnValueDef.Equals(returnType) {
 			p.ThrowTypeError("Incorrect type of value returned.")
 		}
-		p.currentTypeEnv.Returned = true
+		p.currentTypeEnv.SetReturned()
 		return &nodes.Return{
 			Value: returnValue,
 		}
 	case TokenForStatement:
+		return p.ParseForStatement()
+	case TokenStructDeclaration:
+		return p.ParseStructDeclaration()
+	case TokenImportStatement:
+		return p.ParseImportStatement()
+	case TokenWhileStatement:
+		return p.ParseWhileStatement()
 	case TokenEOF:
 		return nil
 	default:

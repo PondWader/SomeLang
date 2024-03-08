@@ -67,8 +67,6 @@ func getLiteralTokenType(literal string) TokenType {
 		return TokenElseStatement
 	case "fn":
 		return TokenFunctionDeclaration
-	case "class":
-		return TokenClassDeclaration
 	case "import":
 		return TokenImportStatement
 	case "export":
@@ -79,6 +77,12 @@ func getLiteralTokenType(literal string) TokenType {
 		return TokenVarDeclaration
 	case "return":
 		return TokenReturnStatement
+	case "struct":
+		return TokenStructDeclaration
+	case "as":
+		return TokenAsStatement
+	case "while":
+		return TokenWhileStatement
 
 	// Types
 	case "int8":

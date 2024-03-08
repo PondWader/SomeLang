@@ -18,7 +18,11 @@ const (
 	TypeMap
 	TypeFunc
 	TypeArray
+	TypeStruct
+	TypeStructInstance
 	TypeAny
+
+	TypeModule
 
 	TypeNil
 )
@@ -105,4 +109,28 @@ func (def ArrayDef) Equals(other TypeDef) bool {
 	}
 	otherDef, ok := other.(ArrayDef)
 	return ok && def.ElementType.Equals(otherDef.ElementType)
+}
+
+type StructDef struct {
+	GenericTypeDef
+	Properties   map[string]int
+	PropertyDefs []TypeDef
+}
+
+func (def StructDef) Equals(other TypeDef) bool {
+	return false
+}
+
+type StructInstanceDef struct {
+	GenericTypeDef
+	StructType StructDef
+}
+
+type ModuleDef struct {
+	GenericTypeDef
+	Properties map[string]TypeDef
+}
+
+func (def ModuleDef) Equals(other TypeDef) bool {
+	return false
 }

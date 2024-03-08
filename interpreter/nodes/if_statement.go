@@ -10,8 +10,8 @@ type IfStatement struct {
 
 func (is *IfStatement) Eval(env *environment.Environment) any {
 	if is.Condition.Eval(env).(bool) {
-		env.NewChild(environment.Call{})
-		is.Inner.Eval(env)
+		childEnv := env.NewChild(environment.Call{})
+		is.Inner.Eval(childEnv)
 	} else if is.Else != nil {
 		is.Else.Eval(env)
 	}

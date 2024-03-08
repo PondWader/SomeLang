@@ -4,8 +4,8 @@ import (
 	"main/interpreter/environment"
 )
 
-func Execute(ast []environment.Node, fileName string, globals map[string]any) {
-	env := environment.New(nil, ast, environment.Call{
+func Execute(ast []environment.Node, fileName string, globals map[string]any, modules map[string]map[string]any) {
+	env := environment.New(nil, environment.Call{
 		File:         fileName,
 		Line:         0,
 		FunctionName: "main",
@@ -15,5 +15,5 @@ func Execute(ast []environment.Node, fileName string, globals map[string]any) {
 		env.Set(name, val)
 	}
 
-	env.Execute()
+	env.Execute(ast)
 }

@@ -6,16 +6,14 @@ type Block struct {
 	Nodes []environment.Node
 }
 
-func (b *Block) Eval(env *environment.Environment) any {
-	for _, node := range b.Nodes {
-		node.Eval(env)
-	}
+func (n *Block) Eval(env *environment.Environment) any {
+	env.Execute(n.Nodes)
 	return nil
 }
 
-func (b *Block) References() []string {
+func (n *Block) References() []string {
 	refs := make([]string, 0)
-	for _, node := range b.Nodes {
+	for _, node := range n.Nodes {
 		refs = append(refs, node.References()...)
 	}
 	return refs

@@ -3,6 +3,7 @@ package interpreter
 type TypeEnvironment struct {
 	// TODO: abstract environment in to environment and then execution environment which extends it and possibly come up with a better name for this
 	identifiers map[string]TypeDef
+	customTypes map[string]TypeDef
 	ReturnType  TypeDef
 	Returned    bool
 	parent      *TypeEnvironment
@@ -11,7 +12,7 @@ type TypeEnvironment struct {
 }
 
 func NewTypeEnvironment(parent *TypeEnvironment, returnType TypeDef, depth int) *TypeEnvironment {
-	return &TypeEnvironment{make(map[string]TypeDef), returnType, false, parent, depth}
+	return &TypeEnvironment{make(map[string]TypeDef), make(map[string]TypeDef), returnType, false, parent, depth}
 }
 
 func (e *TypeEnvironment) NewChild(returnType TypeDef) *TypeEnvironment {
@@ -47,4 +48,8 @@ func (e *TypeEnvironment) getWithDepthCounter(name string, depth int) (TypeDef, 
 
 func (e *TypeEnvironment) Set(name string, value TypeDef) {
 	e.identifiers[name] = value
+}
+
+func (e *TypeEnvironment) SetReturned() {
+	e.Returned = true
 }

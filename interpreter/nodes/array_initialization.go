@@ -1,6 +1,8 @@
 package nodes
 
-import "main/interpreter/environment"
+import (
+	"main/interpreter/environment"
+)
 
 type ArrayInitialization[T any] struct {
 	Elements []environment.Node
