@@ -5,7 +5,7 @@ type TypeEnvironment struct {
 	identifiers map[string]TypeDef
 	customTypes map[string]TypeDef
 	ReturnType  TypeDef
-	Returned    bool
+	returned    bool
 	parent      *TypeEnvironment
 	// How many parent environments there are
 	Depth int
@@ -50,6 +50,10 @@ func (e *TypeEnvironment) Set(name string, value TypeDef) {
 	e.identifiers[name] = value
 }
 
+func (e *TypeEnvironment) GetReturned() bool {
+	return e.returned
+}
+
 func (e *TypeEnvironment) SetReturned() {
-	e.Returned = true
+	e.returned = true
 }

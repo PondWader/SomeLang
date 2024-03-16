@@ -32,7 +32,7 @@ func main() {
 		return
 	}
 
-	ast := interpreter.Parse(string(content), *entryPoint, map[string]interpreter.TypeDef{
+	parser := interpreter.NewParser(string(content), *entryPoint, map[string]interpreter.TypeDef{
 		"print": standardlibrary.PrintDef,
 		"input": standardlibrary.InputDef,
 	}, map[string]map[string]interpreter.TypeDef{
@@ -40,8 +40,8 @@ func main() {
 			"open": keyvalue.OpenDef,
 		},
 	})
+	ast := parser.Parse()
 
-	fmt.Println("Executing...")
 	interpreter.Execute(ast, *entryPoint, map[string]any{
 		"print": standardlibrary.Print,
 		"input": standardlibrary.Input,

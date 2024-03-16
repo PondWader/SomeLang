@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"fmt"
 	"main/interpreter/environment"
 	"main/interpreter/nodes"
 )
@@ -105,8 +106,12 @@ func (p *Parser) ParseImportStatement() environment.Node {
 }
 
 func (p *Parser) ParseForStatement() environment.Node {
-	p.ExpectToken(TokenIdentifier)
-
+	// Should support commas i.e. v, i range ["a", "b"] (left side value, right side index)
+	token := p.ExpectToken(TokenIdentifier)
+	ident := token.Literal
+	p.ExpectToken(TokenRangeStatement)
+	iterableValue, def := p.ParseValue(nil)
+	fmt.Println(ident, iterableValue, def)
 	return nil
 }
 

@@ -16,8 +16,7 @@ type Parser struct {
 	modules        map[string]map[string]TypeDef
 }
 
-// Creates abstract syntax tree
-func Parse(content string, filePath string, globals map[string]TypeDef, modules map[string]map[string]TypeDef) []environment.Node {
+func NewParser(content string, filePath string, globals map[string]TypeDef, modules map[string]map[string]TypeDef) *Parser {
 	p := &Parser{
 		lexer:          NewLexer(content),
 		filePath:       filePath,
@@ -28,7 +27,11 @@ func Parse(content string, filePath string, globals map[string]TypeDef, modules 
 	for name, def := range globals {
 		p.currentTypeEnv.Set(name, def)
 	}
+	return p
+}
 
+// Creates abstract syntax tree
+func (p *Parser) Parse() []environment.Node {
 	ast := make([]environment.Node, 0)
 	for {
 		node := p.ParseNext(false)
@@ -62,7 +65,7 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 
 	// If the current block has already returned, we don't want to read anymore statements
 	// and instead can recursively read through all tokens until the closing curly right brace
-	if p.currentTypeEnv.Returned {
+	if p.currentTypeEnv.GetReturned() {
 		return p.ParseNext(inBlock)
 	}
 
@@ -140,7 +143,7 @@ func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef, returnType TypeD
 		ast = append(ast, token)
 	}
 
-	if returnType != nil && !p.currentTypeEnv.Returned {
+	if returnType != nil && !p.currentTypeEnv.GetReturned() {
 		p.ThrowTypeError("The function is missing a return statement.")
 	}
 

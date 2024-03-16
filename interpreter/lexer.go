@@ -91,25 +91,26 @@ func NewLexer(content string) *Lexer {
 func (l *Lexer) Next() (Token, error) {
 	currentStr := ""
 	for l.cursor < len(l.content) {
-		ch := l.content[l.cursor : l.cursor+1]
+		// Need to use a substring instead of an index to get a value of type string
+		char := l.content[l.cursor : l.cursor+1]
 		l.cursor++
 
-		if ch == " " || ch == "\t" || ch == "\r" {
+		if char == " " || char == "\t" || char == "\r" {
 			continue
 		}
 
-		if token, err := getCharTokenType(ch); err == nil {
+		if token, err := getCharTokenType(char); err == nil {
 			if token == TokenNewLine {
 				l.currentLine++
 			}
 			return Token{
 				Type:    token,
-				Literal: ch,
+				Literal: char,
 				Line:    l.currentLine,
 			}, nil
 		}
 
-		if ch == "\"" {
+		if char == "\"" {
 			strContent, err := l.readString()
 			if err != nil {
 				return Token{}, err
@@ -121,15 +122,15 @@ func (l *Lexer) Next() (Token, error) {
 			}, nil
 		}
 
-		currentStr += ch
+		currentStr += char
 		var endOfToken bool
 		if l.cursor >= len(l.content) {
 			endOfToken = true
 		} else {
-			nextCh := l.content[l.cursor : l.cursor+1]
-			if nextCh == "" || nextCh == " " || nextCh == "\n" || nextCh == "\r" || nextCh == "\t" || nextCh == "\"" {
+			nextChar := l.content[l.cursor : l.cursor+1]
+			if nextChar == "" || nextChar == " " || nextChar == "\n" || nextChar == "\r" || nextChar == "\t" || nextChar == "\"" {
 				endOfToken = true
-			} else if _, err := getCharTokenType(nextCh); err == nil {
+			} else if _, err := getCharTokenType(nextChar); err == nil {
 				endOfToken = true
 			}
 		}
@@ -220,6 +221,18 @@ func (l *Lexer) GetCurrentLine() int {
 	return l.currentLine
 }
 
+func (l *Lexer) SetCurrentLine(line int) {
+	l.currentLine = line
+}
+
+func (l *Lexer) GetCursor() int {
+	return l.cursor
+}
+
+func (l *Lexer) SetCursor(cursor int) {
+	l.cursor = cursor
+}
+
 // Moves the cursor back to the start of the previously read token so it will be read at the next call of Next().
 // Only the last read token should be passed to Unread.
 func (l *Lexer) Unread(token Token) {
@@ -234,25 +247,25 @@ func (l *Lexer) Unread(token Token) {
 	}
 }
 
+func (l *Lexer) SavePos() LexerPos {
+	return LexerPos{l.cursor, l.currentLine, l}
+}
+
 type LexerPos struct {
 	Cursor int
 	Line   int
 	lexer  *Lexer
 }
 
-func (l *Lexer) SavePos() LexerPos {
-	return LexerPos{l.cursor, l.currentLine, l}
-}
-
 func (pos LexerPos) GoTo() (undo func()) {
-	originalLine := pos.lexer.currentLine
-	originalCursor := pos.lexer.cursor
+	originalLine := pos.lexer.GetCurrentLine()
+	originalCursor := pos.lexer.GetCursor()
 
-	pos.lexer.currentLine = pos.Line
-	pos.lexer.cursor = pos.Cursor
+	pos.lexer.SetCurrentLine(pos.Line)
+	pos.lexer.SetCurrentLine(pos.Cursor)
 
 	return func() {
-		pos.lexer.currentLine = originalLine
-		pos.lexer.cursor = originalCursor
+		pos.lexer.SetCurrentLine(originalLine)
+		pos.lexer.SetCursor(originalCursor)
 	}
 }
