@@ -4,12 +4,12 @@ go 1.20
 
 require github.com/logrusorgru/aurora/v4 v4.0.0
 
-require github.com/mattn/go-sqlite3 v1.14.22
-
 require (
-	github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
-	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627
 )
+
+require github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
 
 require (
 	fyne.io/fyne/v2 v2.4.4
