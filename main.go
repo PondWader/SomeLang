@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"main/interpreter"
+	"main/profiler"
 	standardlibrary "main/standard_library"
 	keyvalue "main/standard_library/key_value.go"
 	"os"
@@ -13,7 +14,14 @@ import (
 func main() {
 	entryPoint := flag.String("run", "", "The entry point file to run")
 	runProfiler := flag.Bool("profile", false, "If passed the program execution will be profiled")
+	openProfilerResultsViewer := flag.Bool("profiler-viewer", false, "If passed the profiler results viewer will be opened")
 	flag.Parse()
+
+	if *openProfilerResultsViewer {
+		fmt.Println("Opening profile results viewer")
+		profiler.OpenProfilerResultsViewer()
+		return
+	}
 
 	var err error
 	if *entryPoint == "" {

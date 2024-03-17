@@ -7,6 +7,11 @@ require github.com/logrusorgru/aurora/v4 v4.0.0
 require github.com/mattn/go-sqlite3 v1.14.22
 
 require (
+	github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
+	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627 // indirect
+)
+
+require (
 	fyne.io/fyne/v2 v2.4.4
 	fyne.io/systray v1.10.1-0.20231115130155-104f5ef7839e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
