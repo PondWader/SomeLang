@@ -1,3 +1,8 @@
+profiler, results viewer
+garbage collector (timing of when it runs)
+errors?
+structs?
+
 - Mathematical operations (*, /, +, -) with bidmas (DONE)
 - Comparisons (>, <, >=, <=, !=) (DONE)
 - Not operator (!) (DONE)

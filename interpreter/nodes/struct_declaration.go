@@ -1,7 +1,6 @@
 package nodes
 
 import (
-	"fmt"
 	"main/interpreter/environment"
 )
 
@@ -15,7 +14,6 @@ type StructDeclaration struct {
 // All validation should have been done ahead of time by the parser
 
 func (n *StructDeclaration) Eval(env *environment.Environment) any {
-	fmt.Println("Declaraing struct", n)
 	env.Set(n.Name, func(properties ...any) {
 		methodEnv := env.NewChild(env.Call)
 

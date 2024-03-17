@@ -2,8 +2,8 @@ package keyvalue
 
 import (
 	"database/sql"
-	"main/interop"
 	"main/interpreter"
+	"main/interpreter/interop"
 
 	_ "github.com/mattn/go-sqlite3"
 )

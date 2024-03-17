@@ -11,16 +11,16 @@ type FuncDeclaration struct {
 	ArgNames []string
 }
 
-func (fd *FuncDeclaration) Eval(env *environment.Environment) any {
+func (n *FuncDeclaration) Eval(env *environment.Environment) any {
 	fn := func(args ...any) any {
 		innerEnv := env.NewChild(environment.Call{
-			FunctionName: fd.Name + "()",
-			File:         env.Call.File,
-			Line:         fd.Line,
+			Name: n.Name + "()",
+			File: env.Call.File,
+			Line: n.Line,
 		})
 
 		for i, arg := range args {
-			innerEnv.Set(fd.ArgNames[i], arg)
+			innerEnv.Set(n.ArgNames[i], arg)
 		}
 
 		var returnVal any
@@ -28,18 +28,19 @@ func (fd *FuncDeclaration) Eval(env *environment.Environment) any {
 			returnVal = v
 		})
 
-		fd.Inner.Eval(innerEnv)
+		n.Inner.Eval(innerEnv)
 
+		env.GetCurrentExecutionEnv().ProfileFunctionCall(innerEnv.GetProfileResult())
 		return returnVal
 	}
 	// Check that the function is not an anonymous functions without a name
-	if fd.Name != "" {
-		env.Set(fd.Name, fn)
-		env.AttachReferences(fd.Name, fd.Inner.References())
+	if n.Name != "" {
+		env.Set(n.Name, fn)
+		env.AttachReferences(n.Name, n.Inner.References())
 	}
 	return fn
 }
 
-func (fd *FuncDeclaration) References() []string {
-	return fd.Inner.References()
+func (n *FuncDeclaration) References() []string {
+	return n.Inner.References()
 }

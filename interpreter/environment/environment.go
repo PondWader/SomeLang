@@ -2,14 +2,18 @@ package environment
 
 import (
 	"fmt"
+	"main/profiler"
 	"os"
 	"strconv"
+	"time"
 )
 
 // Execution environment handles the storing of values, garbage collection, and evaluation of the AST
 type Environment struct {
 	identifiers map[string]any
 	parent      *Environment
+	// A pointer to an address that is always updated to the current environment being executed
+	currentExecutionEnv **Environment
 	// call stores which function call initialized the environment
 	Call Call
 
@@ -17,26 +21,44 @@ type Environment struct {
 	// Public value of whether or not loops are broken and should exit (e.g. after a return or break statement)
 	IsBroken bool
 
-	ast          []Node
-	position     int
-	attachedRefs map[string][]string
+	ast           []Node
+	position      int
+	attachedRefs  map[string][]string
+	profile       bool
+	profileResult *profiler.ProfileResult
 
 	modules map[string]map[string]any
 }
 
 type Call struct {
-	File         string
-	Line         int
-	FunctionName string
+	File string
+	Line int
+	Name string
 }
 
-func New(parent *Environment, call Call, modules map[string]map[string]any) *Environment {
+func New(parent *Environment, call Call, modules map[string]map[string]any, profile bool) *Environment {
+	var profileResult *profiler.ProfileResult
+	if profile && call.Name != "" {
+		profileResult = &profiler.ProfileResult{
+			Name:        call.Name,
+			SubPrograms: make([]*profiler.ProfileResult, 0),
+		}
+	}
+
+	var currentExecutionEnv **Environment
+	if parent != nil {
+		currentExecutionEnv = parent.currentExecutionEnv
+	}
+
 	return &Environment{
-		identifiers:  make(map[string]any),
-		parent:       parent,
-		Call:         call,
-		attachedRefs: make(map[string][]string),
-		modules:      modules,
+		identifiers:         make(map[string]any),
+		parent:              parent,
+		Call:                call,
+		attachedRefs:        make(map[string][]string),
+		modules:             modules,
+		profile:             profile,
+		profileResult:       profileResult,
+		currentExecutionEnv: currentExecutionEnv,
 	}
 }
 
@@ -66,7 +88,7 @@ func (env *Environment) SetWithDepth(name string, value any, depth int) {
 }
 
 func (e *Environment) NewChild(call Call) *Environment {
-	child := New(e, call, e.modules)
+	child := New(e, call, e.modules, e.profile)
 	child.SetReturnCallback(e.returnCallback)
 	return child
 }
@@ -76,14 +98,29 @@ func (e *Environment) GetParent() *Environment {
 }
 
 func (e *Environment) GetCallStackOutput() string {
-	output := "\tFile: " + e.Call.File + ", Line: " + strconv.Itoa(e.Call.Line) + ", In " + e.Call.FunctionName
+	output := ""
+	if e.Call.Name != "" {
+		output = "\tFile: " + e.Call.File + ", Line: " + strconv.Itoa(e.Call.Line) + ", In " + e.Call.Name
+	}
 	if e.parent != nil {
-		output += "\n" + e.parent.GetCallStackOutput()
+		if output != "" {
+			output += "\n"
+		}
+		output += e.parent.GetCallStackOutput()
 	}
 	return output
 }
 
 func (e *Environment) Execute(ast []Node) {
+	var prevExecutionEnv *Environment
+	if e.currentExecutionEnv != nil {
+		prevExecutionEnv = *e.currentExecutionEnv
+		*e.currentExecutionEnv = e
+	} else {
+		e.currentExecutionEnv = &e
+	}
+	startTime := time.Now()
+
 	e.ast = ast
 	for i, node := range ast {
 		if e.IsBroken {
@@ -92,6 +129,13 @@ func (e *Environment) Execute(ast []Node) {
 		e.position = i
 		node.Eval(e)
 		e.RunGC()
+	}
+
+	if e.profileResult != nil {
+		e.profileResult.Duration = time.Since(startTime)
+	}
+	if prevExecutionEnv != nil {
+		*e.currentExecutionEnv = prevExecutionEnv
 	}
 }
 
@@ -104,6 +148,23 @@ func (e *Environment) SetReturnCallback(cb func(v any)) {
 
 func (e *Environment) Return(v any) {
 	e.returnCallback(v)
+}
+
+func (e *Environment) ProfileFunctionCall(result *profiler.ProfileResult) {
+	if e.profileResult != nil {
+		e.profileResult.SubPrograms = append(e.profileResult.SubPrograms, result)
+	} else if e.profile && e.parent != nil {
+		e.parent.ProfileFunctionCall(result)
+	}
+}
+
+func (e *Environment) GetProfileResult() *profiler.ProfileResult {
+	return e.profileResult
+}
+
+// Get's the environment anywhere in tree currently being executed
+func (e *Environment) GetCurrentExecutionEnv() *Environment {
+	return *e.currentExecutionEnv
 }
 
 // Declares references attached to a certain identifier.

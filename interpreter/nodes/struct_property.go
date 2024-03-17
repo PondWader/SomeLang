@@ -9,6 +9,7 @@ type StructProperty struct {
 	Struct   environment.Node
 	Index    int
 	IsMethod bool
+	Name     string
 }
 
 func (n *StructProperty) Eval(env *environment.Environment) any {

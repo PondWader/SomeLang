@@ -41,7 +41,7 @@ func main() {
 	})
 	ast := parser.Parse()
 
-	interpreter.Execute(ast, *entryPoint, *runProfiler, map[string]any{
+	profileResult := interpreter.Execute(ast, *entryPoint, *runProfiler, map[string]any{
 		"print": standardlibrary.Print,
 		"input": standardlibrary.Input,
 	}, map[string]map[string]any{
@@ -49,4 +49,8 @@ func main() {
 			"open": keyvalue.Open,
 		},
 	})
+	if *runProfiler {
+		os.WriteFile("profiler_results.csv", []byte(profileResult.ToCsv()), 0644)
+		fmt.Println("Saved profiler results to profiler_results.csv")
+	}
 }
