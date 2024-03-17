@@ -15,7 +15,6 @@ func main() {
 	runProfiler := flag.Bool("profile", false, "If passed the program execution will be profiled")
 	flag.Parse()
 
-	fmt.Println(*entryPoint, *runProfiler)
 	var err error
 	if *entryPoint == "" {
 		fmt.Println("You must specify an entrypoint with the -run flag")
@@ -42,7 +41,7 @@ func main() {
 	})
 	ast := parser.Parse()
 
-	interpreter.Execute(ast, *entryPoint, map[string]any{
+	interpreter.Execute(ast, *entryPoint, *runProfiler, map[string]any{
 		"print": standardlibrary.Print,
 		"input": standardlibrary.Input,
 	}, map[string]map[string]any{
