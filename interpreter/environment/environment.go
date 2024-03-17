@@ -20,6 +20,8 @@ type Environment struct {
 	ast          []Node
 	position     int
 	attachedRefs map[string][]string
+
+	modules map[string]map[string]any
 }
 
 type Call struct {
@@ -28,12 +30,13 @@ type Call struct {
 	FunctionName string
 }
 
-func New(parent *Environment, call Call) *Environment {
+func New(parent *Environment, call Call, modules map[string]map[string]any) *Environment {
 	return &Environment{
 		identifiers:  make(map[string]any),
 		parent:       parent,
 		Call:         call,
 		attachedRefs: make(map[string][]string),
+		modules:      modules,
 	}
 }
 
@@ -63,7 +66,7 @@ func (env *Environment) SetWithDepth(name string, value any, depth int) {
 }
 
 func (e *Environment) NewChild(call Call) *Environment {
-	child := New(e, call)
+	child := New(e, call, e.modules)
 	child.SetReturnCallback(e.returnCallback)
 	return child
 }
@@ -113,4 +116,8 @@ func (e *Environment) Panic(msg ...any) {
 	fmt.Println(append([]any{"panic:"}, msg...)...)
 	fmt.Println(e.GetCallStackOutput())
 	os.Exit(1)
+}
+
+func (e *Environment) GetBuiltInModule(module string) map[string]any {
+	return e.modules[module]
 }

@@ -9,7 +9,7 @@ func Execute(ast []environment.Node, fileName string, globals map[string]any, mo
 		File:         fileName,
 		Line:         0,
 		FunctionName: "main",
-	})
+	}, modules)
 
 	for name, val := range globals {
 		env.Set(name, val)

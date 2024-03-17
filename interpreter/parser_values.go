@@ -59,18 +59,35 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 	case TokenLeftSquareBracket:
 		index, indexDef := p.ParseValue(nil)
 		if !indexDef.IsInteger() {
-			p.ThrowTypeError("Arrays must be indexed with an integer value")
+			p.ThrowTypeError("Arrays must be indexed with an integer value.")
 		}
 		arrayDef, ok := def.(ArrayDef)
 		if !ok {
-			p.ThrowTypeError("Cannot access index on non-array value")
+			p.ThrowTypeError("Cannot access index on non-array value.")
 		}
 		p.ExpectToken(TokenRightSquareBracket)
 		return GetGenericTypeNode(arrayDef.ElementType).GetArrayIndex(value, index), arrayDef.ElementType
 
-	case TokenLeftBrace:
+	case TokenPeriod:
+		moduleDef, ok := def.(ModuleDef)
+		if !ok {
+			p.ThrowTypeError("Properties and methods can only be accessed on modules and structs.")
+		}
+		moduleIdent := value.(*nodes.Identifier).Name
 
+		property := p.ExpectToken(TokenIdentifier).Literal
+		propertyDef, ok := moduleDef.Properties[property]
+		if !ok {
+			p.ThrowTypeError("Property ", property, " does not exist on module ", moduleIdent, ".")
+		}
+
+		// Modules are just represented as maps of property keys to values at runtime so a map access node can be used to
+		return p.ParseValueExpression(&nodes.MapAccess[string, any]{
+			Identifier: moduleIdent,
+			Key:        property,
+		}, propertyDef)
 	}
+
 	p.lexer.Unread(token)
 	return value, def
 }

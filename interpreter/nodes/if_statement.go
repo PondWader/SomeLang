@@ -8,20 +8,20 @@ type IfStatement struct {
 	Else      environment.Node
 }
 
-func (is *IfStatement) Eval(env *environment.Environment) any {
-	if is.Condition.Eval(env).(bool) {
+func (n *IfStatement) Eval(env *environment.Environment) any {
+	if n.Condition.Eval(env).(bool) {
 		childEnv := env.NewChild(environment.Call{})
-		is.Inner.Eval(childEnv)
-	} else if is.Else != nil {
-		is.Else.Eval(env)
+		n.Inner.Eval(childEnv)
+	} else if n.Else != nil {
+		n.Else.Eval(env)
 	}
 	return nil
 }
 
-func (is *IfStatement) References() []string {
-	refs := append(is.Condition.References(), is.Inner.References()...)
-	if is.Else != nil {
-		return append(refs, is.Else.References()...)
+func (n *IfStatement) References() []string {
+	refs := append(n.Condition.References(), n.Inner.References()...)
+	if n.Else != nil {
+		return append(refs, n.Else.References()...)
 	}
 	return refs
 }

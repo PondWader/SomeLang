@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"main/interop"
 	"main/interpreter"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var OpenDef = interpreter.FuncDef{
@@ -31,8 +33,22 @@ type KeyValueDb struct {
 	db *sql.DB
 }
 
+const create string = `
+CREATE TABLE IF NOT EXISTS key_value (
+  key VARCHAR(255) NOT NULL PRIMARY KEY,
+  value VARCHAR(65536) NOT NULL
+);`
+
 func Open(file string) []any {
 	db, err := sql.Open("sqlite3", file)
+	if err != nil {
+		panic(err)
+	}
+
+	if _, err := db.Exec(create); err != nil {
+		panic(err)
+	}
+
 	fmt.Println(db, err)
 	return interop.CreateRuntimeStruct(&KeyValueDb{db})
 }

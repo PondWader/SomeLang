@@ -85,24 +85,27 @@ func (p *Parser) ParseIfStatement() environment.Node {
 }
 
 func (p *Parser) ParseImportStatement() environment.Node {
-	modulePath := p.ExpectToken(TokenString).Literal
+	module := p.ExpectToken(TokenString).Literal
 
-	module := p.modules[modulePath]
-	if module == nil {
-		p.ThrowSyntaxError("Module \"", modulePath, "\" does not exist")
+	moduleDef := p.modules[module]
+	if moduleDef == nil {
+		p.ThrowSyntaxError("Module \"", module, "\" does not exist")
 	}
-	moduleName := modulePath
+	identifier := module
 	if token := p.lexer.NextOrExit(); token.Type == TokenAsStatement {
-		moduleName = p.ExpectToken(TokenIdentifier).Literal
+		identifier = p.ExpectToken(TokenIdentifier).Literal
 	} else {
 		p.lexer.Unread(token)
 	}
 
-	p.currentTypeEnv.Set(moduleName, ModuleDef{
+	p.currentTypeEnv.Set(identifier, ModuleDef{
 		GenericTypeDef: GenericTypeDef{TypeModule},
-		Properties:     module,
+		Properties:     moduleDef,
 	})
-	return nil
+	return &nodes.Import{
+		Module:     module,
+		Identifier: identifier,
+	}
 }
 
 func (p *Parser) ParseForStatement() environment.Node {
