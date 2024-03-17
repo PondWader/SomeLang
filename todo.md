@@ -36,6 +36,7 @@ var ages map[string]uint8 = {
 }
 for name, arge = range ages {}
 ```
+(DONE)
 - Error handling:
 ```
 // ! after function specifies that it can return an error
@@ -114,3 +115,4 @@ print(msg)
 - Garbage collection:
 Mark and sweep garbage collection, each node is going to need a method to return every identifier that it references
 - key-value library
+- profiler

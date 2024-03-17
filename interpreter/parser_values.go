@@ -379,6 +379,17 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 			p.ThrowTypeError("An array of an unkown type cannot have 0 elements")
 		}
 		return GetGenericTypeNode(elementType).GetArrayInitialization(elements), ArrayDef{GenericTypeDef: GenericTypeDef{TypeArray}, ElementType: elementType, Size: size}
+
+	case TokenDash:
+		val, def := p.ParseValue(nil)
+		if !def.IsNumber() {
+			p.ThrowTypeError("Cannot get negative value of non-number value.")
+		}
+		return GetGenericTypeNode(def).GetMathsOperation(
+			nodes.MathsSubtraction,
+			&nodes.Value{Value: ConvertInt64ToTypeDef(0, def.GetGenericType())},
+			val,
+		), def
 	}
 	return p.ParseValue(implicitType)
 }

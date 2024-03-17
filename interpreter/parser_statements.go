@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"main/interpreter/environment"
 	"main/interpreter/nodes"
 )
@@ -110,12 +109,48 @@ func (p *Parser) ParseImportStatement() environment.Node {
 
 func (p *Parser) ParseForStatement() environment.Node {
 	// Should support commas i.e. v, i range ["a", "b"] (left side value, right side index)
-	token := p.ExpectToken(TokenIdentifier)
-	ident := token.Literal
-	p.ExpectToken(TokenRangeStatement)
+	valIdent := p.ExpectToken(TokenIdentifier).Literal
+
+	indexIdent := ""
+	if token := p.ExpectToken(TokenComma, TokenRangeStatement); token.Type == TokenComma {
+		indexIdent = p.ExpectToken(TokenIdentifier).Literal
+		p.ExpectToken(TokenRangeStatement)
+	}
+
 	iterableValue, def := p.ParseValue(nil)
-	fmt.Println(ident, iterableValue, def)
-	return nil
+
+	if def.IsInteger() {
+		if indexIdent != "" {
+			p.ThrowSyntaxError("Two values cannot be specified on the left hand side of an integer range loop.")
+		}
+
+		var startVal environment.Node = &nodes.Value{Value: 0}
+		endVal := iterableValue
+		if token := p.ExpectToken(TokenLeftBrace, TokenComma); token.Type == TokenComma {
+			endVal, def = p.ParseValue(nil)
+			if !def.IsInteger() {
+				p.ThrowTypeError("Integers values must be used for an integer range loop.")
+			}
+			startVal = iterableValue
+		} else {
+			p.lexer.Unread(token)
+		}
+		return &nodes.LoopRange{
+			ValIdentifier: valIdent,
+			Start:         startVal,
+			End:           endVal,
+			Inner:         p.ParseBlock(map[string]TypeDef{valIdent: GenericTypeDef{TypeInt64}}, nil),
+		}
+	}
+
+	arrayDef, ok := def.(ArrayDef)
+	if !ok {
+		p.ThrowTypeError("Right hand side of range loop must either be an integer or array.")
+	}
+	return GetGenericTypeNode(arrayDef.ElementType).GetLoopArray(valIdent, indexIdent, iterableValue, p.ParseBlock(
+		map[string]TypeDef{valIdent: arrayDef.ElementType, indexIdent: GenericTypeDef{Type: TypeInt64}},
+		nil,
+	))
 }
 
 func (p *Parser) ParseWhileStatement() environment.Node {
@@ -123,7 +158,7 @@ func (p *Parser) ParseWhileStatement() environment.Node {
 	if !def.Equals(GenericTypeDef{TypeBool}) {
 		p.ThrowTypeError("Value in while statement must be of type boolean")
 	}
-	return &nodes.WhileStatement{
+	return &nodes.LoopWhile{
 		Condition: val,
 		Inner:     p.ParseBlock(map[string]TypeDef{}, nil),
 	}

@@ -83,6 +83,8 @@ func getLiteralTokenType(literal string) TokenType {
 		return TokenAsStatement
 	case "while":
 		return TokenWhileStatement
+	case "range":
+		return TokenRangeStatement
 
 	// Types
 	case "int8":

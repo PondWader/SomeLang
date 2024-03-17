@@ -4,12 +4,12 @@ import (
 	"main/interpreter/environment"
 )
 
-type WhileStatement struct {
+type LoopWhile struct {
 	Condition environment.Node
 	Inner     *Block
 }
 
-func (n *WhileStatement) Eval(env *environment.Environment) any {
+func (n *LoopWhile) Eval(env *environment.Environment) any {
 	for !env.IsBroken && n.Condition.Eval(env).(bool) {
 		childEnv := env.NewChild(environment.Call{})
 		n.Inner.Eval(childEnv)
@@ -17,6 +17,6 @@ func (n *WhileStatement) Eval(env *environment.Environment) any {
 	return nil
 }
 
-func (n *WhileStatement) References() []string {
+func (n *LoopWhile) References() []string {
 	return append(n.Condition.References(), n.Inner.References()...)
 }

@@ -13,6 +13,7 @@ type TypeNodeGenerator interface {
 	GetArrayInitialization(elements []environment.Node) environment.Node
 	GetArrayIndex(array environment.Node, index environment.Node) environment.Node
 	GetArrayAssignment(array environment.Node, index environment.Node, value environment.Node) environment.Node
+	GetLoopArray(valIdentifier string, indexIdentifier string, array environment.Node, inner *nodes.Block) environment.Node
 	ArrayIndexDetails(node environment.Node) (array environment.Node, index environment.Node, ok bool)
 }
 
@@ -69,6 +70,15 @@ func (tn TypeNodeGeneratorAny[T]) GetArrayAssignment(array environment.Node, ind
 			Index: index,
 		},
 		Value: value,
+	}
+}
+
+func (tn TypeNodeGeneratorAny[T]) GetLoopArray(valIdentifier string, indexIdentifier string, array environment.Node, inner *nodes.Block) environment.Node {
+	return &nodes.LoopArray[T]{
+		ValIdentifier:   valIdentifier,
+		IndexIdentifier: indexIdentifier,
+		Array:           array,
+		Inner:           inner,
 	}
 }
 
