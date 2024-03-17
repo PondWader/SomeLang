@@ -18,7 +18,8 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 		}
 
 		args := make([]environment.Node, len(funcDef.Args))
-		for i := 0; ; i++ {
+		i := 0
+		for ; ; i++ {
 			if token := p.lexer.PeekOrExit(); token.Type == TokenRightBracket {
 				p.lexer.Next()
 				break
@@ -40,6 +41,9 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 			}
 
 			val, valDef := p.ParseValue(argDef)
+			if valDef == nil { // If the value parsed is a function with no return type, valDef can be nil
+				p.ThrowTypeError("Cannot use non-value expression as a function argument.")
+			}
 			if !valDef.Equals(argDef) {
 				p.ThrowTypeError("Incorrect type passed for argument ", i+1, " of function call.")
 			}
@@ -48,7 +52,15 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 			token := p.ExpectToken(TokenRightBracket, TokenComma, TokenNewLine)
 			if token.Type == TokenRightBracket {
 				break
+			} else if token.Type == TokenNewLine {
+				// If a comma is expected, it must be put before a new line
+				if i < len(funcDef.Args) {
+					p.ThrowTypeError("Expected comma after function argument.")
+				}
 			}
+		}
+		if i+1 < len(funcDef.Args) {
+			p.ThrowTypeError("Not enough arguments passed to function.")
 		}
 
 		return p.ParseValueExpression(&nodes.FuncCall{
@@ -69,22 +81,38 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 		return GetGenericTypeNode(arrayDef.ElementType).GetArrayIndex(value, index), arrayDef.ElementType
 
 	case TokenPeriod:
+		structDef, ok := def.(StructDef)
+		if ok {
+			propertyName := p.ExpectToken(TokenIdentifier).Literal
+			propertyIndex, ok := structDef.Properties[propertyName]
+			if !ok {
+				p.ThrowTypeError("Property ", propertyName, " does not exist on struct ", structDef.Name, ".")
+			}
+			propertyDef := structDef.PropertyDefs[propertyIndex]
+
+			// Structs are arrays that have property names mapped to indexes whilst parsing
+			return p.ParseValueExpression(&nodes.StructProperty{
+				Struct:   value,
+				Index:    propertyIndex,
+				IsMethod: propertyDef.GetGenericType() == TypeFunc,
+			}, propertyDef)
+		}
+
 		moduleDef, ok := def.(ModuleDef)
 		if !ok {
 			p.ThrowTypeError("Properties and methods can only be accessed on modules and structs.")
 		}
-		moduleIdent := value.(*nodes.Identifier).Name
 
 		property := p.ExpectToken(TokenIdentifier).Literal
 		propertyDef, ok := moduleDef.Properties[property]
 		if !ok {
-			p.ThrowTypeError("Property ", property, " does not exist on module ", moduleIdent, ".")
+			p.ThrowTypeError("Property ", property, " does not exist on module ", value.(*nodes.Identifier).Name, ".")
 		}
 
 		// Modules are just represented as maps of property keys to values at runtime so a map access node can be used to
-		return p.ParseValueExpression(&nodes.MapAccess[string, any]{
-			Identifier: moduleIdent,
-			Key:        property,
+		return p.ParseValueExpression(&nodes.MapValue[string, any]{
+			Map: value,
+			Key: property,
 		}, propertyDef)
 	}
 

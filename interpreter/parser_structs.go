@@ -1,7 +1,6 @@
 package interpreter
 
 import (
-	"fmt"
 	"main/interpreter/environment"
 	"main/interpreter/nodes"
 )
@@ -22,15 +21,14 @@ type structMethodDeclaration struct {
 }
 
 func (p *Parser) ParseStructDeclaration() environment.Node {
-	fmt.Println("Parsing struct")
 	name := p.ExpectToken(TokenIdentifier).Literal
-	fmt.Println("struct name:", name)
 
 	p.ExpectToken(TokenLeftBrace)
 	def := StructDef{
 		GenericTypeDef: GenericTypeDef{TypeStruct},
 		Properties:     make(map[string]int),
 		PropertyDefs:   make([]TypeDef, 0),
+		Name:           name,
 	}
 
 	methodDeclarations := make([]structMethodDeclaration, 0)

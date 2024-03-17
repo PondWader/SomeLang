@@ -19,9 +19,8 @@ func (fc *FuncCall) Eval(env *environment.Environment) any {
 	out := v.Call(args)
 	if len(out) > 0 {
 		return out[0].Interface()
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (fc *FuncCall) References() []string {

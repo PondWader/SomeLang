@@ -115,15 +115,11 @@ type StructDef struct {
 	GenericTypeDef
 	Properties   map[string]int
 	PropertyDefs []TypeDef
+	Name         string
 }
 
 func (def StructDef) Equals(other TypeDef) bool {
-	return false
-}
-
-type StructInstanceDef struct {
-	GenericTypeDef
-	StructType StructDef
+	return other.GetGenericType() == TypeAny
 }
 
 type ModuleDef struct {
