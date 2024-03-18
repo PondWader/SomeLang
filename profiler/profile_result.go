@@ -22,7 +22,7 @@ func (pr *ProfileResult) SortSubPrograms() []*ProfileResult {
 	for i := 1; i < len(subPrograms); i++ {
 		value := subPrograms[i]
 		index := i
-		for index > 0 && value.Duration < subPrograms[index-1].Duration {
+		for index > 0 && value.Duration > subPrograms[index-1].Duration {
 			subPrograms[index] = subPrograms[index-1]
 			index -= 1
 		}
