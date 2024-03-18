@@ -1,0 +1,48 @@
+DECLARE ENUM GenericType (
+    TypeInt8,
+	TypeInt16,
+	TypeInt32,
+	TypeInt64,
+	TypeUint8,
+	TypeUint16,
+	TypeUint32,
+	TypeUint64,
+	TypeFloat32,
+	TypeFloat64,
+	TypeString,
+	TypeBool,
+	TypeMap,
+	TypeFunc,
+	TypeArray,
+	TypeStruct,
+	TypeStructInstance,
+	TypeAny,
+
+	TypeModule,
+
+	TypeNil
+)
+
+DECLARE INTERFACE TypeDef:
+	PUBLIC getGenericType() GenericType
+	PUBLIC equals(TypeDef) boolean
+	PUBLIC isInteger() boolean
+	PUBLIC isNumber() boolean
+
+DECLARE GenericTypeDef IMPLEMENTS TypeDef:
+    PUBLIC type: GenericType 
+    constructor(genericType: GenericType):
+        SET this.type TO genericType
+
+    DECLARE PUBLIC METHOD getGenericType() RETURNS GenericType:
+        RETURN this.type 
+
+    DECLARE PUBLIC METHOD equals(other: TypeDef) RETURNS boolean:
+        IF this.type IS GenericType.Any OR other.getGenericType() IS GenericType.Any THEN 
+            RETURN true
+        END IF
+        RETURN this IS EQUAL TO (other AS GenericTypeDef)
+
+    DECLARE PUBLIC METHOD isInteger() RETURNS boolean:
+        SET genericType TO this.type 
+	    return genericType == TypeInt8 || genericType == TypeInt16 || genericType == TypeInt32 || genericType == TypeInt64 || genericType == TypeUint8 || genericType == TypeUint16 || genericType == TypeUint32 || genericType == TypeUint64

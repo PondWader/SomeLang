@@ -73,10 +73,10 @@ DECLARE OBJECT Lexer:
 	PRIVATE cursor: int
 	PRIVATE currentLine: int
 
-    constructor(content: string) -> Lexer:
-        this.content = content
-		this.cursor = 0
-		this.currentLine = 1
+    constructor(content: string) RETURNS Lexer:
+        SET this.content TO content
+		SET this.cursor TO 0
+		SET this.currentLine TO 1
 
     DEFINE PUBLIC METHOD next() RETURNS Token, error:
         SET currentStr TO ""

@@ -50,7 +50,7 @@ func (def GenericTypeDef) Equals(other TypeDef) bool {
 }
 
 func (def GenericTypeDef) IsInteger() bool {
-	genericType := def.GetGenericType()
+	genericType := def.Type
 	return genericType == TypeInt8 || genericType == TypeInt16 || genericType == TypeInt32 || genericType == TypeInt64 || genericType == TypeUint8 || genericType == TypeUint16 || genericType == TypeUint32 || genericType == TypeUint64
 }
 
