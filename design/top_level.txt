@@ -1,0 +1,13 @@
+When the program is started, the main procedure will launch either the profiler viewer section or the interpreter to execute a program. This is based on the flags passed to the program via the command line by the user. If the "-profiler-viewer" flag is passed, the program will open the profiler viewer user interface. If not it will check that the "-run" flag has been passed followed by the entrypoint file to execute. There will also be an optional "-profile" flag that can be passed with the "-run" flag to run the profiler during the programs execution and produce a results file.
+
+The main procedure will:
+1. Read the flags passed via the command line and run the correct part of the program
+If the interpreter is run:
+2. Read the program file
+3. Parse the content, stepping through each token
+4. Execute the abstract syntax tree
+If the profile viewer is started:
+2. Get, validate and read profile results file from the user (out: resultsContent)
+3. Parse the results content CSV in to an array of objects (in: resultsContent (string), out: results ([Result]))
+3. Render profiler results chart using data (in: results ([Result]))
+

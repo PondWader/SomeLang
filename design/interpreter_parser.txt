@@ -1,0 +1,142 @@
+DECLARE OBJECT Parser:
+   	PRIVATE lexer: Lexer
+	PRIVATE filePath: string
+	PRIVATE currentTypeEnv: TypeEnvironment
+    PRIVATE modules: map[string]map[string]TypeDef 
+
+    constructor(content: string, filePath: string, globals: map[string]TypeDef, modules map[string]map[string]TypeDef):
+        SET this.lexer TO new Lexer(content)
+        SET this.filePath = filePath
+        SET this.currentTypeEnv TO new TypeEnvironment(null, null, 0)
+
+        START LOOP FOR name, def IN globals:
+            this.currentTypeEnv.set(name, def)
+        END LOOP
+
+    DEFINE PUBLIC METHOD parse() RETURNS Node[]:
+        INITIALIZE ast AS empty array of Node
+        START LOOP:
+            SET node TO this.parseNext(false)
+            IF node IS null THEN
+                BREAK LOOP
+            END IF
+            APPEND node TO ast
+        END LOOP
+        RETURN ast
+
+    DEFINE PUBLIC METHOD ParseNext(inBlock: boolean) RETURNS Node:
+        SET token TO this.lexer.nextOrExit()
+        IF token.Type IS TokenType.NewLine OR token.Type IS TokenType.SemiColon THEN
+            RETURN this.parseNext(inBlock)
+        END IF
+        IF token.Type IS TokenType.RightBrace AND inBlock IS true THEN
+            RETURN null
+        END IF
+
+        IF token.Type IS TokenType.ForwardSlash THEN
+            IF this.lexer.PeekOrExit().type IS TokenType.ForwardSlash THEN
+                START LOOP
+                    SET token, err TO this.lexer.next()
+                    IF err IS null AND token.Type == TokenType.NewLine OR token.Type == TokenType.EOF THEN
+                        RETURN this.parseNext(inBlock)
+                    END IF
+                END LOOP
+            END IF
+        END IF
+
+        IF this.currentTypeEnv.getReturned() IS true THEN
+            RETURN this.parseNext(inBlock)
+        END IF
+
+        DEFER anonymous function ():
+            SET token TO this.expectToken(TokenType.EOF, TokenType.NewLine, TokenType.SemiColon, TokenType.ForwardSlash, TokenType.RightBrace)
+            IF token.Type IS TokenType.ForwardSlash OR token.Type IS TokenType.RightBrace THEN
+                this.lexer.unread(token)
+            END IF
+
+        MATCH token.Type TO
+            CASE TokenType.VarDeclaration:
+                RETURN this.parseVarDeclaration()
+            CASE TokenType.FunctionDeclaration:
+                RETURN this.parseFunctionDeclaration()
+            CASE TokenType.IfStatement:
+                RETURN this.parseIfStatement()
+            CASE TokenType.Identifier:
+                SET typeDef, _ TO this.currentTypeEnv.Get(token.Literal)
+                IF typeDef IS null {
+                    CALL this.throwTypeError(token.Literal, " is not defined in this scope.")
+                }
+                SET node, _ TO this.parseOperator(this.parseValueExpression(new Identifier(token.Literal), typeDef))
+                RETURN node
+            CASE TokenType.ReturnStatement:
+                SET returnType TO this.currentTypeEnv.getReturnType()
+                IF returnType IS null THEN
+                    CALL this.throwSyntaxError("You cannot use a return statement outside of a function with a defined return type.")
+                END IF
+
+                SET returnValue, returnValueDef TO this.parseValue(returnType)
+                if returnValueDef.Equals(returnType) IS false {
+                    CALL this.throwTypeError("Incorrect type of value returned.")
+                }
+                CALL this.currentTypeEnv.SetReturned()
+                RETURN new Return(returnValue)
+            CASE TokenType.ForStatement:
+                RETURN this.ParseForStatement()
+            CASE TokenType.StructDeclaration:
+                RETURN this.ParseStructDeclaration()
+            CASE TokenType.ImportStatement:
+                RETURN this.ParseImportStatement()
+            CASE TokenType.WhileStatement:
+                RETURN this.ParseWhileStatement()
+            CASE TokenType.EOF:
+                RETURN null
+            DEFAULT:
+                CALL this.throwSyntaxError("Unexpected token \"", token.Literal, "\".")
+
+    DEFINE PUBLIC METHOD ParseBlock(scopedVariables: map[string]TypeDef, returnType: TypeDef) RETURNS node[]:
+        INITIALIZE ast AS empty array of Node
+        CALL this.expectToken(TokenType.LeftBrace)
+
+        SET this.currentTypeEnv TO this.currentTypEnv.newChild(returnType)
+        START LOOP FOR name, valType IN scopedVariables
+            this.currentTypeEnv.set(name, valType)
+        END FOR
+
+        START LOOP 
+            SET token TO this.parseNext(true)
+            IF token IS null THEN
+                BREAK LOOP 
+            END IF
+            APPEND token TO ast
+        END LOOP
+
+        IF returnType IS NOT null AND this.currentTypeEnv.getReturned() IS false THEN 
+            this.throwTypeError("The function is missing a return statement.")
+        END IF
+
+        this.currentTypeEnv = this.currentTypeEnv.GetParent()
+        return new Block(ast)
+
+    DEFINE PUBLIC METHOD expectToken(tokenType: TokenType...) RETURNS Token:
+        SET token TO this.lexer.nextOrExit()
+        START LOOP FOR allowedType IN tokenType:
+            IF token.Type == allowedType THEN 
+                RETURN token
+            END IF
+        END LOOP
+        this.throwSyntaxError("Unexpected token \"", token.Literal, "\".")
+        RETURN empty Token
+
+func (p *Parser) ThrowSyntaxError(msg ...any) {
+	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Syntax error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
+	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))
+	fmt.Println(" ", aurora.Gray(18, "in "+p.filePath))
+	os.Exit(1)
+}
+
+func (p *Parser) ThrowTypeError(msg ...any) {
+	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Type error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
+	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))
+	fmt.Println(" ", aurora.Gray(18, "in "+p.filePath))
+	os.Exit(1)
+}

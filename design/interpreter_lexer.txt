@@ -1,0 +1,347 @@
+DECLARE ENUM TokenType (
+	IfStatement,
+	ElseStatement,
+	FunctionDeclaration,
+	ImportStatement,
+	ExportStatement,
+	ForStatement,
+	VarDeclaration,
+	ReturnStatement,
+	StructDeclaration,
+	AsStatement,
+	RangeStatement,
+	WhileStatement,
+
+	True,
+	False,
+	String,
+	Number,
+	Identifier,
+
+	TypeInt8,
+	TypeInt16,
+	TypeInt32,
+	TypeInt64,
+	TypeUint8,
+	TypeUint16,
+	TypeUint32,
+	TypeUint64,
+	TypeFloat32,
+	TypeFloat64,
+	TypeString,
+	TypeBool,
+	TypeMap,
+
+	Colon,
+	SemiColon,
+	NewLine,
+	Comma,
+	LeftBracket,
+	RightBracket,
+	LeftBrace,
+	RightBrace,
+	LeftSquareBracket,
+	RightSquareBracket,
+	Asterisk,
+	Plus,
+	Dash,
+	ForwardSlash,
+	Ampersand,
+	Bar,
+	Apostrophe,
+	ExclamationMark,
+	Equals,
+	GreaterThan,
+	LessThan,
+	Period,
+
+	EOF
+)
+
+DECLARE OBJECT Token:
+   	PUBLIC type: TokenType
+	PUBLIC literal: string
+	PUBLIC line:   int 
+
+    constructor(type: TokenType, literal: string, line: int):
+        SET this.type TO type
+        SET this.literal TO literal
+        SET this.line TO line
+
+DECLARE OBJECT Lexer:
+	PRIVATE content: string
+	PRIVATE cursor: int
+	PRIVATE currentLine: int
+
+    constructor(content: string) -> Lexer:
+        this.content = content
+
+    DEFINE PUBLIC METHOD next() RETURNS Token, error:
+        SET currentStr TO ""
+        START LOOP WHILE this.cursor < length of this.content:
+            SET char TO character AT this.cursor OF this.content
+            SET this.cursor TO this.cursor + 1
+
+            IF char == " " OR char == "\t" OR char == "\r" THEN
+                CONTINUE TO NEXT LOOP ITERATION
+            END IF
+
+            SET token TO getCharTokenType(char)
+            IF an error was NOT returned by call of getCharTokenType(char) THEN
+                if token == TokenType.NewLine THEN
+                    SET this.currentLine TO this.currentLine + 1
+                END IF
+                RETURN new Token(token, char, this.currentLine), null
+            END IF
+
+            IF char IS '"' THEN
+                SET strContent, err TO this.readString()
+                IF err IS NOT null THEN
+                    RETURN empty Token, error
+                END IF
+				RETURN new Token(type: TokenType.String, strContent, this.currentLine), null
+            END IF
+
+			SET currentStr TO currentStr + char
+			SET endOfToken TO false
+			IF this.cursor >= len(this.content) THEN
+				SET endOfToken TO true
+			ELSE
+				SET nextChar TO character AT this.cursor OF this.content
+				IF nextChar IS "" OR nextChar IS " " OR nextChar IS "\n" OR nextChar IS "\r" OR nextChar IS "\t" OR nextChar IS '"' THEN
+					SET endOfToken TO true
+				ELSE 
+					SET _, err TO getCharTokenType(nextChar)
+					IF err IS NOT null THEN
+						SET endOfToken TO true
+					END IF
+				END IF
+			END IF
+
+			IF endOfToken IS true THEN
+				RETURN new Token(getLiteralTokenType(currentStr), currentStr, this.currentLine), null
+			END IF
+        END LOOP
+		return new Token(TokenType.EOF, "EOF", this.currentLine), null
+
+    DEFINE PUBLIC METHOD peek() RETURNS Token, error:
+		SET originalPos TO this.cursor
+		SET originalLine TO this.currentLine
+		SET token, err TO this.next()
+		SET this.cursor TO originalPos
+		SET this.currentLine TO originalLine
+		RETURN token, err
+
+	DEFINE PUBLIC METHOD peekOrExit() RETURNS Token:
+		SET token, err TO this.Peek()
+		IF err IS NOT null THEN
+			DISPLAY err AS string + " " + this.currentLine AS string + ":" + this.cursor AS string
+			EXIT PROGRAM WITH CODE 1
+		END IF
+		RETURN token
+
+	DEFINE PUBLIC METHOD nextOrExit() RETURNS Token:
+		SET token, err TO this.Next()
+		IF err IS NOT null THEN
+			DISPLAY err AS string + " " + this.currentLine AS string + ":" + this.cursor AS string
+			EXIT PROGRAM WITH CODE 1
+		END IF
+		RETURN token
+
+	DEFINE PRIVATE METHOD readString() RETURNS string, error:
+		SET currentStr TO ""
+		SET escapedChar TO false
+		START LOOP WHILE this.cursor < length of this.content:
+			SET char TO character AT this.cursor OF this.content
+			SET this.cursor TO this.cursor + 1
+
+			IF char IS "\\" AND escapedChar IS false THEN
+				SET escapedChar TO true
+				CONTINUE TO NEXT LOOP ITERATION
+			END IF
+			IF escapedChar IS true THEN
+				MATCH char TO
+					CASE '"':
+						RETURN currentStr, null
+					CASE "n":
+						SET currentStr TO currentStr + "\n"
+					CASE "t":
+						SET currentStr TO currentStr + "\t"
+					CASE "r":
+						SET currentStr TO currentStr + "\r"
+					DEFAULT:
+						SET currentStr TO currentStr + char
+				SET escapedChar TO false
+			ELSE
+				IF char IS '"' THEN
+					RETURN currentStr, null
+				END IF
+				SET currentStr TO currentStr + char
+			END IF
+
+			IF char IS "\n" THEN
+				RETURN empty string, error "unexpected newline while reading string literal"
+			END IF
+		END LOOP
+		RETURN empty string, error "reached EOF without string finishing"
+
+	DEFINE PUBLIC METHOD getCurrentLine() RETURNS int:
+		RETURN this.currentLine
+
+	DEFINE PUBLIC METHOD setCurrentLine(line: int):
+		SET this.currentLine TO LINE
+
+	DEFINE PUBLIC METHOD getCursor() RETURNS int:
+		RETURN this.cursor
+
+	DEFINE PUBLIC METHOD setCursor(cursor: int):
+		SET this.cursor TO cursor
+
+	DEFINE PUBLIC METHOD Unread(token: Token):
+		IF token.type == TokenType.EOF THEN
+			RETURN
+		END IF
+		SET this.cursor TO this.cursor - length of token.literal
+		IF token.Type == TokenType.String THEN
+			SET this.cursor TO this.cursor - 2
+		ELSE IF token.Type IS TokenType.NewLine THEN
+			SET this.currentLine TO this.currentLine - 1
+		END IF
+
+	DEFINE PUBLIC METHOD SavePos() RETURNS LexerPos:
+		RETURN new LexerPos(this.cursor, this.currentLine, this)
+
+
+DECLARE OBJECT LexerPos:
+   	PUBLIC cursor: int
+	PUBLIC line: int
+	PRIVATE lexer: Lexer 
+
+    constructor(cursor: int, line: int, lexer: Lexer):
+        SET this.cursor TO cursor
+        SET this.line TO line
+        SET this.lexer TO lexer
+
+	DEFINE PUBLIC METHOD GoTo() RETURNS function():
+		SET originalLine TO this.lexer.getCurrentLine()
+		SET originalCursor TO this.lexer.getCursor()
+		CALL this.lexer.setCurrentLine(this.currentLine)
+		CALL this.lexer.setCursor(this.cursor)
+
+		RETURN anonymous function ():
+			CALL this.lexer.setCurrentLine(originalLine)
+			CALL this.lexer.setCursor(originalCursor)
+
+	package interpreter
+
+DECLARE FUNCTION getCharTokenType(char: string) RETURNS TokenType, error:
+	MATCH char TO
+		case ":":
+			RETURN TokenType.Colon, null
+		case ";":
+			RETURN TokenType.SemiColon, null
+		case "\n":
+			RETURN TokenType.NewLine, null
+		case ",":
+			RETURN TokenType.Comma, null
+		case "(":
+			RETURN TokenType.LeftBracket, null
+		case ")":
+			RETURN TokenType.RightBracket, null
+		case "{":
+			RETURN TokenType.LeftBrace, null
+		case "}":
+			RETURN TokenType.RightBrace, null
+		case "[":
+			RETURN TokenType.LeftSquareBracket, null
+		case "]":
+			RETURN TokenType.RightSquareBracket, null
+		case "*":
+			RETURN TokenType.Asterisk, null
+		case "+":
+			RETURN TokenType.Plus, null
+		case "-":
+			RETURN TokenType.Dash, null
+		case "/":
+			RETURN TokenType.ForwardSlash, null
+		case "&":
+			RETURN TokenType.Ampersand, null
+		case "|":
+			RETURN TokenType.Bar, null
+		case "'":
+			RETURN TokenType.Apostrophe, null
+		case "!":
+			RETURN TokenType.ExclamationMark, null
+		case "=":
+			RETURN TokenType.Equals, null
+		case ">":
+			RETURN TokenType.GreaterThan, null
+		case "<":
+			RETURN TokenType.LessThan, null
+		case ".":
+			RETURN TokenType.Period, null
+	RETURN 0, error "char provided is not a valid token"
+
+
+DECLARE FUNCTION getLiteralTokenType(literal: string) RETURNS TokenType {
+	IF literal IS "true" THEN
+		return TokenType.True
+	ELSE IF literal IS "false" THEN
+		return TokenType.False
+	END IF
+
+	MATCH literal:
+		case "if":
+			return TokenType.IfStatement
+		case "else":
+			return TokenType.ElseStatement
+		case "fn":
+			return TokenType.FunctionDeclaration
+		case "import":
+			return TokenType.ImportStatement
+		case "export":
+			return TokenType.ExportStatement
+		case "for":
+			return TokenType.ForStatement
+		case "var":
+			return TokenType.VarDeclaration
+		case "return":
+			return TokenType.ReturnStatement
+		case "struct":
+			return TokenType.StructDeclaration
+		case "as":
+			return TokenType.AsStatement
+		case "while":
+			return TokenType.WhileStatement
+
+		case "int8":
+			return TokenTypeInt8
+		case "int16":
+			return TokenTypeInt16
+		case "int32":
+			return TokenTypeInt32
+		case "int64":
+			return TokenTypeInt64
+		case "uint8":
+			return TokenTypeUint8
+		case "uint16":
+			return TokenTypeUint16
+		case "uint32":
+			return TokenTypeUint32
+		case "uint64":
+			return TokenTypeUint64
+		case "float32":
+			return TokenTypeFloat32
+		case "float64":
+			return TokenTypeFloat64
+		case "string":
+			return TokenTypeString
+		case "bool":
+			return TokenTypeBool
+
+	START LOOP FOR char IN literal:
+		if char < 48 OR char > 57 THEN
+			RETURN TokenType.Identifier
+	END LOOP
+
+	RETURN TokenType.Number

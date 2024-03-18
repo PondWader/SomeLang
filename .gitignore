@@ -3,6 +3,5 @@ test.lang
 .replit
 replit.nix
 notes.md
-design
 test.db
 profiler_results.csv
