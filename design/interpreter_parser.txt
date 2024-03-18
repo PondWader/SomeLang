@@ -67,11 +67,11 @@ DECLARE OBJECT Parser:
             CASE TokenType.IfStatement:
                 RETURN this.parseIfStatement()
             CASE TokenType.Identifier:
-                SET typeDef, _ TO this.currentTypeEnv.Get(token.Literal)
+                SET typeDef, _ TO this.currentTypeEnv.Get(token.literal)
                 IF typeDef IS null {
-                    CALL this.throwTypeError(token.Literal, " is not defined in this scope.")
+                    CALL this.throwTypeError(token.literal, " is not defined in this scope.")
                 }
-                SET node, _ TO this.parseOperator(this.parseValueExpression(new Identifier(token.Literal), typeDef))
+                SET node, _ TO this.parseOperator(this.parseValueExpression(new Identifier(token.literal), typeDef))
                 RETURN node
             CASE TokenType.ReturnStatement:
                 SET returnType TO this.currentTypeEnv.getReturnType()
@@ -96,7 +96,7 @@ DECLARE OBJECT Parser:
             CASE TokenType.EOF:
                 RETURN null
             DEFAULT:
-                CALL this.throwSyntaxError("Unexpected token \"", token.Literal, "\".")
+                CALL this.throwSyntaxError("Unexpected token \"", token.literal, "\".")
 
     DEFINE PUBLIC METHOD ParseBlock(scopedVariables: map[string]TypeDef, returnType: TypeDef) RETURNS node[]:
         INITIALIZE ast AS empty array of Node
@@ -129,7 +129,7 @@ DECLARE OBJECT Parser:
                 RETURN token
             END IF
         END LOOP
-        this.throwSyntaxError("Unexpected token \"", token.Literal, "\".")
+        this.throwSyntaxError("Unexpected token \"", token.literal, "\".")
         RETURN empty Token
 
     DEFINE PUBLIC METHOD throwSyntaxError(msg: any...):
@@ -231,7 +231,7 @@ DECLARE OBJECT Parser:
 			        this.throwTypeError("Properties and methods can only be accessed on modules and structs.")
                 END IF
 
-                SET property TO this.expectToken(TokenType.Identifier).Literal 
+                SET property TO this.expectToken(TokenType.Identifier).literal 
                 SET propertyDef, ok TO moduleDef.properties[property]
                 IF ok IS false THEN 
 			        this.throwTypeError("Property ", property, " does not exist on module ", (value AS Identifier).Name, ".")
@@ -256,23 +256,23 @@ DECLARE OBJECT Parser:
 
         START LOOP 
             SET rhsVal, rhsDef TO this.parsePartialValue(def)
-            IF rhsDef.Equals(def) IS false THEN 
+            IF rhsDef.equals(def) IS false THEN 
                 CALL this.throwTypeError("Mathematical operations must be performed on value of the same type.")
             END IF
             IF onlyMultiplication IS true AND operationType IS NOT TokenType.Asterisk AND operationType IS NOT TokenType.ForwardSlash THEN 
                 RETURN value, def
             END IF
 
-            INITIALIZE operation AS MathsOperationType 
+            INITIALIZE operation AS MathsOperation
             MATCH operationType TO
                 CASE TokenType.Asterisk:
-                    SET operation TO MathsMultiplication 
+                    SET operation TO MathsOperation.Multiplication 
                 case TokenType.ForwardSlash: 
-                    SET operation TO MathsDivision 
+                    SET operation TO MathsOperation.Division 
                 case TokenType.Plus: 
-                    SET operation TO MathsAddition 
+                    SET operation TO MathsOperation.Addition 
                 case TokenType.Dash:
-                    SET operation TO MathsSubtraction 
+                    SET operation TO MathsOperation.Subtraction 
                 default:
                     panic "Non-operation token passed as operationType token"
 
@@ -290,6 +290,400 @@ DECLARE OBJECT Parser:
             SET operationType TO token.type
         END LOOP
 
+    DEFINE PUBLIC METHOD parseOperator(value: Node, def: TypeDef) RETURN Node, TypeDef:
+        SET token TO this.lexer.nextOrExit()
 
+        MATCH token.type TO
+            CASE TokenType.Ampersand:
+                CALL this.expectToken(TokenType.Ampersand)
+                IF def.equals(new GenericTypeDef(GenericType.Bool)) IS false THEN 
+                    CALL this.throwTypeError("Operation && can only be used on boolean values.")
+                END IF
 
+                SET rhsVal, rhsValDef TO this.parseValue(null)
+                IF rhsValDef.equals(new GenericTypeDef(GenericType.Bool)) THEN 
+                    CALL this.throwTypeError("Right hand side of && operation must be a boolean value.")
+                END IF
 
+                RETURN new And(value, rhsVal)
+
+            CASE TokenType.Bar:
+                CALL this.expectToken(TokenType.Bar)
+                IF def.equals(new GenericTypeDef(GenericType.Bool)) IS false THEN 
+                    CALL this.throwTypeError("Operation || can only be used on boolean value.")
+                END IF
+
+                SET rhsVal, rhsValDef TO this.parseValue(null)
+                IF rhsValDef.equals(new GenericTypeDef(GenericType.Bool)) THEN 
+                    CALL this.throwTypeError("Right hand side of || operation must be a boolean value.")
+                END IF
+
+                RETURN new Or(value, rhsVal)
+
+            CASE TokenType.Equals:
+                IF this.lexer.peekOrExit().type == TokenType.Equals THEN 
+                    CALL this.lexer.next()
+                    SET rhsVal, rhsValDef TO this.parseCalculatedValue(def)
+                    IF rhsValDef.equals(def) IS false THEN 
+                        this.throwTypeError("Right hand side of comparison must be the same type as the left hand side.")
+                    END IF
+                    return this.parseOperator(new EqualityComparison(value, rhsVal), new GenericTypeDef(GenericType.Bool))
+                END IF
+
+                SET ident, ok TO value AS Identifier 
+                IF ok IS true THEN 
+                    SET newVal, newValDef TO this.parseValue(def)
+                    IF def.equals(newValDef) IS false THEN 
+                        this.throwTypeError("Cannot assign new type to variable \"", ident.Name, "\".")
+                    END IF
+
+                    SET _, depth TO this.currentTypeEnv.get(ident.Name)
+
+                    RETURN new Assignment(ident.Name, newVal, depth)
+                
+                SET genericTypeNode TO getGenericTypeNode(def)
+                SET arrayNode, indexNode, ok TO genericTypeNode.arrayIndexDetails(value)
+                IF ok IS true THEN 
+                    SET newVal, newValDef TO this.parseValue(def)
+                    IF newValDef.equals(def) IS false THEN 
+				        this.throwTypeError("Incorrect type in array element assignment.")
+                    END IF
+                    RETURN genericTypeNode.getArrayAssignment(arrayNode, indexNode, newVal), def
+                ELSE 
+                    this.throwSyntaxError("Left hand sie of assignment is not assignable.")
+                END IF
+
+            CASE TokenType.GreaterThan, TokenType.LessThan:
+                IF def.isNumber() IS false THEN 
+                    CALL this.throwTypeError("Cannot perform comparison on non-number.")
+                END IF
+                SET nextToken TO this.lexer.peekOrExit()
+                INITIALIZE comparison AS ComparisonType 
+                IF token.type IS TokenType.GreaterThan AND nextToken.type IS TokenType.Equals THEN 
+                    CALL this.lexer.next()
+                    SET comparison TO ComparisonType.GreaterThanOrEquals
+                ELSE IF token.type IS TokenGreaterThan THEN 
+                    SET comparison TO ComparisonType.GreaterThan 
+                ELSE IF nextToken.type IS TokenType.Equals THEN 
+                    CALL this.lexer.next()
+                    SET comparison TO ComparisonType.LessThanOrEquals 
+                ELSE 
+                    SET comparison TO ComparisonType.LessThan
+                END IF
+                SET rhsVal, rhsValDef TO this.parseCalculatedValue(def)
+                IF rhsValDef.equals(def) IS FALSE THEN 
+			        this.throwTypeError("Right hand side of comparison must be the same type as the left hand side.")
+                END IF
+                RETURN this.parseOperator(getGenericTypeNode(def).getInequalityComparison(comparison, value, rhsVal), new GenericTypeDef(GeneicType.Bool))
+            
+            CASE TokenType.ExclamationMark:
+                CALL this.expectToken(TokenType.Equals)
+                SET rhsVal, rhsValDef TO this.parseValue(def)
+                IF rhsValDef.equals(def) IS false THEN 
+			        this.throwTypeError("Right hand side of comparison must be the same type as the left hand side.")
+                END IF
+                RETURN this.parseOperator(new Not(
+                    new EqualityComparison(value, rhsVal)
+                ))
+
+        CALL this.lexer.unread(token)
+        RETURN value, def
+
+    DEFINE PUBLIC METHOD parsePartialValue(implicitType: TypeDef) Node, TypeDef:
+        SET token TO this.expectToken(TokenType.String, TokenType.Number, TokenType.Identifier, TokenType.True, TokenType.False, TokenType.Dash, TokenType.LeftBracket, TokenType.LeftSquareBracket, TokenType.NewLine, TokenType.ExclamationMark)
+        MATCH token.Type TO 
+            CASE TokenType.String:
+                RETURN this.parseValueExpression(new Value(token.literal)), new GenericTypeDef(GenericType.String)
+            CASE TokenType.True:
+                RETURN this.parseValueExpression(new Value(true)), new GenericTypeDef(GenericType.Bool)
+            CASE TokenType.False:
+                RETURN this.parseValueExpression(new Value(false)), new GenericTypeDef(GenericType.Bool)
+            CASE TokenType.Number:
+                IF this.lexer.peekOrExit().type IS TokenType.Period THEN 
+                    CALL this.lexer.next()
+                    SET decimalNum TO this.expectToken(TokenType.Number)
+                    SET val TO token.literal + "." + decimalNum.literal AS float
+                    IF implicitType IS NOT null THEN 
+                        SET implicitVal TO convertFloat64ToTypeDef(val, implicitType.getGenericType())
+                        IF implicitVal IS NOT null THEN
+                            RETURN new Value(implicitVal), implicitType
+                        END IF
+                    END IF
+                    RETURN this.parseValueExpression(new Value(val)), new GenericTypeDef(GenericType.Float64)
+                END IF
+                SET val TO token.literal AS integer
+
+                IF implicitType IS NOT null THEN 
+                    SET implicitVal TO convertInt64ToTypeDef(val, implicitType.getGenericType())
+                    IF implicitVal IS NOT null THEN 
+                        RETURN this.parseValueExpression(new Value(implicitVal), implicitType)
+                    END IF
+                END IF
+                RETURN this.parseValueExpession(new Value(val))
+
+            CASE TokenType.Identifier:
+                SET typeDef, _ TO this.currentTypEnv.get(token.literal)
+                IF typeDef IS null THEN 
+			        CALL this.throwTypeError(token.literal, " is not defined in this scope.")
+                END IF
+                RETURN this.parseValueExpression(new Identifier(token.literal), typeDef)
+
+            CASE TokenType.LeftBracket:
+                DEFER this.expectToken(TokenType.RightBracket)
+                RETURN this.parseValue(implicitType)
+
+            CASE TokenType.ExclamationMark:
+                SET val, def TO this.parseValue(null)
+                IF def.getGenericType IS NOT GenericType.Bool THEN 
+			        this.throwTypeError("Not operator must be used on a boolean value.")
+                END IF
+                RETURN new Not(val), new GenericTypeDef(GenericType.Bool)
+
+            CASE TokenType.LeftSquareBracket:
+                INITIALIZE elements AS array of Node 
+                INITIALIZE elementType AS TypeDef 
+                SET size TO -1
+                IF implicitType IS NOT null AND implicitType.getGenericType IS GenericType.Array THEN 
+                    SET size TO (implicitType AS ArrayDef).size
+                    SET elementType TO (implicitType AS ArrayDef).elementType
+                END IF
+                IF size IS -1 THEN 
+                    SET elements TO array of Node WITH LENGTH 0
+                ELSE 
+                    SET elements TO array of Node WITH LENGTH size 
+                END IF 
+
+                START LOOP FOR position from 0 to infinity
+                    IF this.lexer.peekOrExit().type IS TokenType.RightBracket THEN 
+                        CALL this.lexer.next()
+                        BREAK LOOP 
+                    END IF 
+                    SET element, def TO this.parseValue(elementType)
+                    IF elementType IS null THEN 
+                        SET elementType TO def
+                    ELSE IF def.equals(elementType) IS false THEN
+				        CALL this.throwTypeError("Incorrect type for element of array.")
+                    END IF
+                    IF position IS size THEN 
+				        CALL this.throwTypeError("Maximum number of elements in array reached.")
+                    ELSE IF size IS -1 THEN 
+                        APPEND element TO elements
+                    ELSE
+                        SET elements[position] TO element
+                    END IF
+
+                    SET token TO this.expectToken(TokenType.Comma, TokenType.RightSquareBracket)
+                    IF token.type IS TokenType.RightSquareBracket THEN 
+                        BREAK LOOP
+                    END IF
+                END LOOP
+                IF elementType IS null THEN 
+                    CALL this.throwTypeError("An array of an unkown type cannot have 0 elements.")
+                END IF
+                RETURN getGenericTypeNode(elementType).GetArrayInitialization(elements), new ArrayDef(new GenericTypeDef(GenericType.Array), elementType, size)
+            
+            CASE TokenType.Dash:
+                SET val, def TO this.parseValue(null)
+                IF def.isNumber() IS false THEN 
+			        CALL this.throwTypeError("Cannot get negative value of non-number value.")
+                END IF
+                RETURN getGenericTypeNode(def).getMathsOperation(
+                    Maths.Subtraction,
+                    new Value(convertInt64ToTypeDef(0, def.getGenericType())),
+                    val
+                ), def
+        
+        RETURN this.parseValue(implicitType)
+
+    DEFINE PUBLIC METHOD parseCalculatedValue(implicitType: TypeDef) RETURNS Node, TypeDef:
+        SET val, def TO this.parsePartialValue(implicitType)
+        RETURN this.parseMathsOperation(val, def, false)
+
+    DEFINE PUBLIC METHOD parseValue(implicitType: TypeDef) RETURNS Node, TypeDef:
+        RETURN this.parseOperation(this.parseCalculatedValue(implicitType))
+
+    DEFINE PUBLIC METHOD parseVarDeclaration() RETURNS Node:
+        SET token TO this.expectToken(TokenType.Identifier)
+        SET identifier TO token.literal 
+
+        SET token TO this.lexer.nextOrExit()
+        SET typeDef TO new GenericTypeDef(GenericType.Nil)
+        IF token.type IS NOT TokenType.Equals THEN 
+            CALL this.lexer.unread(token)
+            SET typeDef TO this.parseTypeDef()
+            CALL this.expectToken(TokenType.Equals)
+        END IF 
+
+        SET valNode, valType TO this.parseValue(typeDef)
+        IF typeDef.getGenericType() IS NOT GenericType.Nil AND valType.equals(typeDef) IS false THEN 
+		    CALL this.throwTypeError("Incorrect type of value on right hand side of variable declaration.")
+        END IF
+
+        CALL this.currentTypeEnv.set(identifier, valType)
+
+        RETURN new Assignment(identifier, valNode, 0)
+
+    DEFINE PUBLIC METHOD parseFunctionDeclaration() RETURNS Node:
+        SET funcName, argDefs, agNames, returnType TO this.parseFunctionDef()
+
+        CALL this.currentTypeEnv.set(funcName, new FuncDef(new GenericTypeDef(GenericType.Func), argDefs, false, returnType))
+
+        SET args TO map[string]TypeDef WITH LENGTHS length of argDefs 
+        START LOOP FOR i, name IN argNames 
+            SET args[name] TO argDefs[i]
+        END LOOP
+        SET inner TO this.parseBlock(args, returnType)
+
+        RETURN new FuncDeclaration(funcName, argNames, inner, this.lexer.getCurrentLine())
+
+    DEFINE PUBLIC METHOD parseIfStatement() RETURNS Node:
+        SET val, valDef TO this.parseValue(null)
+        IF valDef.equals(new GenericTypeDef(GenericType.Bool)) IS false THEN 
+		    CALL this.throwTypeError("If statement must be followed by a bool value.")
+        END IF
+        SET inner TO this.parseBlock(empty map[string]TypeDef, null)
+
+        INITIALIZE elseNode AS Node 
+        SET token TO this.lexer.nextOrExit()
+        IF token.Type IS TokenType.ElseStatement THEN 
+            SET token TO this.expectToken(TokenType.IfStatement, TokenType.LeftBrace)
+            IF token.Type IS TokenType.IfStatement THEN 
+                SET elseNode TO this.parseIfStatement()
+            ELSE 
+                CALL this.lexer.unread(token)
+                SET elseNode TO this.parseBlock(empty map[string]TypeDef, null)
+            END IF 
+        ELSE 
+            CALL this.lexer.unread(token)
+        END IF
+
+        RETURN new IfStatement(val, inner, elseNode)
+
+    DEFINE PUBLIC METHOD parseImportStatement() RETURNS Node:
+        SET module TO this.expectToken(TokenType.String).literal 
+
+        SET moduleDef TO this.modules[module]
+        IF moduleDef IS null THEN 
+		    CALL this.throwSyntaxError("Module \"", module, "\" does not exist")
+        END IF
+        SET identifier TO module 
+        SET token TO this.lexer.nextOrExit()
+        IF token.type IS TokenType.AsStatement THEN 
+            SET identifier TO this.expectToken(TokenType.Identifier).literal
+        ELSE 
+            CALL this.lexer.unread(token)
+        END IF
+
+        CALL this.currentTypeEnv.set(identifier, new ModuleDef(new GenericTypeDef(GenericType.Module), moduleDef))
+        RETURN new Import(module, identifier)
+
+    DEFINE PUBLIC METHOD parseForStatement() RETURNS Node:
+        SET valIdent TO this.expectToken(TokenType.Identifier).literal 
+
+        SET indexIent TO ""
+        SET token TO this.expectToken(TokenType.Comma, TokenType.RangeStatement)
+        IF token.Type IS TokenType.Comma THEN 
+            SET indexIdent TO this.expectToken(TokenType.Identifier).literal 
+            CALL this.expectToken(TokenType.RangeStatement)
+        END IF
+
+        SET iterableValue, def TO this.parseValue(null)
+
+        IF def.isInteger() IS true THEN 
+            IF indexIdent IS NOT "" THEN 
+			    CALL this.throwSyntaxError("Two values cannot be specified on the left hand side of an integer range loop.")
+            END IF
+
+            SET startVal TO new Value(0)
+            SET endVal TO iterableVlaue
+            SET token TO this.expectToken(TokenType.LeftBrace, TokenType.Comma)
+            IF token.Type IS TokenType.Comma THEN 
+                SET endVal, def TO this.parseValue(null)
+                IF def.isInteger() IS false THEN 
+				    CALL this.throwTypeError("Integers values must be used for an integer range loop.")
+                END IF
+                SET startVal TO iterableVlaue
+            ELSE 
+                CALL this.lexer.unread(token)
+            END IF
+            RETURN new LoopRange(valIdent, startVal, endVal, this.parseBlock({valident: new GenericTypeDef(GenericType.Int64)}, null))
+        END IF
+
+        SET arrayDef, ok TO def AS ArrayDef 
+        IF ok IS false THEN 
+		    CALL this.throwTypeError("Right hand side of range loop must either be an integer or array.")
+        END IF
+        RETURN getGenericTypeNode(arrayDef.elementType).getLoopArray(valIdent, indexIdent, iterableValue, this.parseBlock(
+            {valIdent: arrayDef.elementType, indexIdent: new GenericTypeDef(GenericType.Int64)},
+            null
+        ))
+
+    DEFINE PUBLIC METHOD parseWhileStatement() RETURNS Node:
+        SET val, def TO this.parseValue(new GenericTypeDef(GenericType.Bool))
+        IF def.equals(new GenericTypeDef(GenericType.Bool)) IS false THEN 
+		    CALL this.throwTypeError("Value in while statement must be of type boolean")
+        END IF
+        RETURN new LoopWhile(val, this.parseBlock({}, null))
+
+    DEFINE PUBLIC METHOD parseFunctionDef() RETURNS string, TypeDef[], string[], TypeDef:
+        SET name TO this.expectToken(TokenType.Identifier).literal 
+        CALL this.expectToken(TokenType.LeftBracket)
+
+        SET argDefs TO empty array of TypeDef 
+        SET argNames TO empty array of strings 
+        START LOOP FOR i from 0 to infinity 
+            SET token TO this.expectToken(TokenType.Identifier, TokenType.RightBracket)
+            IF token.Type IS TokenType.RightBracket THEN 
+                BREAK LOOP
+            END IF 
+
+            CALL this.expectToken(TokenType.Colon)
+            APPEND this.parseTypeDef() TO argDefs 
+            APPEND token.literal TO argNames 
+
+            SET token TO this.expectToken(TokenType.Comma, TOkenType.RightBracket)
+            IF token.type IS TokenType.RightBracket THEN 
+                BREAK LOOP
+            END IF
+        END LOOP
+
+        SET token TO this.lexer.nextOrExit()
+        IF token.type IS TokenType.Colon THEN 
+            SET returnType TO this.parseTypeDef()
+        ELSE 
+            CALL this.lexer.unread(token)
+        END IF
+
+    DEFINE PUBLIC METHOD parseTypeDef() RETURNS TypeDef:
+        SET token TO this.expectToken(TokenType.Int8, TokenType.Int16, TokenType.Int32, TokenType.Int64, TokenType.Uint8, TokenType.Uint16, TokenType.Uint32, TpkenType.Uint64, TokenType.Float32, TokenType.Float64, TokenType.String, TokenType.Bool, TokenType.Map, TokenType.LeftSquareBracket, TokenType.FunctionDeclaration)
+
+        INITIALIZE typeDef AS TypeDef 
+        MATCH token.type TO 
+            CASE TokenType.FunctionDeclaration:
+                SET _, argDefs, _, returnType TO this.parseFunctionDef()
+                RETURN new FuncDef(new GenericTypeDef(GenericType.TypeFunc), argDefs, false, returnType)
+
+            CASE TokenType.Map:
+                CALL this.expectToken(TokenType.LeftSquareBracket)
+                SET keyType TO this.parseTypeDef()
+                CALL this.expectToken(TokenType.RightSquareBracket)
+                SET valueType TO this.parseTypeDef()
+
+                RETURN new MapDef(new GenericTypeDef(GenericType.Map), keyType, valueType)
+
+            CASE TokenType.LeftSquareBracket:
+                SET token TO this.expectToken(TokenType.RightSquareBracket, TokenType.Number)
+                SET size TO -1
+                IF token.type IS TokenType.Number THEN 
+                    SET size TO token.literal AS integer 
+                    IF size < 0 THEN 
+				        CALL this.throwSyntaxError("Size of array must be greater than or equal to 0")
+                    END IF
+                    CALL this.expectToken(TokenType.RightSquareBracket)
+                END IF
+                RETURN new ArrayDef(new GenericTypeDef(GenericType.TypeArray), this.parseTypeDef, size)
+
+        RETURN new GenericTypeDef(typeTokenToPrimitiveType(token))
+
+DECLARE FUNCTION typeTokenToPrimitiveType(token: Token) RETURNS GenericType:
+    RETURN GenericType enum value at token.Type - TokenType.Int8

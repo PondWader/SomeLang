@@ -37,11 +37,10 @@ func (p *Parser) ParseTypeDef() TypeDef {
 	// Expect a token of a type
 	token := p.ExpectToken(TokenTypeInt8, TokenTypeInt16, TokenTypeInt32, TokenTypeInt64, TokenTypeUint8, TokenTypeUint16, TokenTypeUint32, TokenTypeUint64, TokenTypeFloat32, TokenTypeFloat64, TokenTypeString, TokenTypeBool, TokenTypeMap, TokenLeftSquareBracket, TokenFunctionDeclaration)
 
-	var typeDef TypeDef
 	switch token.Type {
 	case TokenFunctionDeclaration:
 		_, argDefs, _, returnType := p.ParseFunctionDef()
-		typeDef = FuncDef{
+		return FuncDef{
 			GenericTypeDef{TypeFunc},
 			argDefs,
 			false,
@@ -54,7 +53,7 @@ func (p *Parser) ParseTypeDef() TypeDef {
 		p.ExpectToken(TokenRightSquareBracket)
 		valueType := p.ParseTypeDef()
 
-		typeDef = MapDef{
+		return MapDef{
 			GenericTypeDef{TypeMap},
 			keyType,
 			valueType,
@@ -70,19 +69,16 @@ func (p *Parser) ParseTypeDef() TypeDef {
 			}
 			p.ExpectToken(TokenRightSquareBracket)
 		}
-		typeDef = ArrayDef{
+		return ArrayDef{
 			GenericTypeDef: GenericTypeDef{TypeArray},
 			ElementType:    p.ParseTypeDef(),
 			Size:           size,
 		}
-
-	default:
-		typeDef = GenericTypeDef{
-			Type: TypeTokenToPrimitiveType(token),
-		}
 	}
 
-	return typeDef
+	return GenericTypeDef{
+		Type: TypeTokenToPrimitiveType(token),
+	}
 }
 
 // A function that converts a token for a type (such as "int8") to it's corresponding type code

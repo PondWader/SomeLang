@@ -179,7 +179,7 @@ func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment
 		p.ExpectToken(TokenAmpersand)
 
 		if !def.Equals(GenericTypeDef{TypeBool}) {
-			p.ThrowTypeError("Operation && can only be used on boolean value.")
+			p.ThrowTypeError("Operation && can only be used on boolean values.")
 		}
 
 		rhsVal, rhsValDef := p.ParseValue(nil)
@@ -234,13 +234,16 @@ func (p *Parser) ParseOperator(value environment.Node, def TypeDef) (environment
 				NewValue:   newVal,
 				Depth:      depth,
 			}, def
-		} else if arrayNode, indexNode, ok := GetGenericTypeNode(def).ArrayIndexDetails(value); ok {
+		}
+
+		genericTypeNode := GetGenericTypeNode(def)
+		if arrayNode, indexNode, ok := genericTypeNode.ArrayIndexDetails(value); ok {
 			// Assignment to element of array
 			newVal, newValDef := p.ParseValue(def)
 			if !newValDef.Equals(def) {
 				p.ThrowTypeError("Incorrect type in array element assignment.")
 			}
-			return GetGenericTypeNode(def).GetArrayAssignment(arrayNode, indexNode, newVal), def
+			return genericTypeNode.GetArrayAssignment(arrayNode, indexNode, newVal), def
 		} else {
 			p.ThrowSyntaxError("Left hand side of assignment is not assignable.")
 		}
@@ -339,15 +342,14 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 		size := -1
 		if implicitType != nil && implicitType.GetGenericType() == TypeArray {
 			size = implicitType.(ArrayDef).Size
-			if size == -1 {
-				elements = make([]environment.Node, 0)
-			} else {
-				elements = make([]environment.Node, size)
-			}
 			elementType = implicitType.(ArrayDef).ElementType
-		} else {
-			elements = make([]environment.Node, 0)
 		}
+		if size == -1 {
+			elements = make([]environment.Node, 0)
+		} else {
+			elements = make([]environment.Node, size)
+		}
+
 		for position := 0; ; position++ {
 			if p.lexer.PeekOrExit().Type == TokenRightBracket {
 				p.lexer.Next()
@@ -359,7 +361,7 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 			} else if !def.Equals(elementType) {
 				p.ThrowTypeError("Incorrect type for element of array.")
 			}
-			if size != -1 && position == size {
+			if position == size {
 				p.ThrowTypeError("Maximum number of elements in array reached.")
 			} else if size == -1 {
 				// If the array is an unkown size we need to append to it
@@ -376,7 +378,7 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 		if elementType == nil {
 			// Since if the program has no specified type for the array and there are no elements to implicitly
 			// get the type from, an array with no elements and no explicit type definition is not allowed.
-			p.ThrowTypeError("An array of an unkown type cannot have 0 elements")
+			p.ThrowTypeError("An array of an unkown type cannot have 0 elements.")
 		}
 		return GetGenericTypeNode(elementType).GetArrayInitialization(elements), ArrayDef{GenericTypeDef: GenericTypeDef{TypeArray}, ElementType: elementType, Size: size}
 
