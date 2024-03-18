@@ -77,7 +77,8 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 			panic(err)
 		}
 		// Expect token ending the statement
-		if token := p.ExpectToken(TokenEOF, TokenNewLine, TokenSemiColon, TokenForwardSlash, TokenRightBrace); token.Type == TokenForwardSlash || token.Type == TokenRightBrace {
+		token := p.ExpectToken(TokenEOF, TokenNewLine, TokenSemiColon, TokenForwardSlash, TokenRightBrace)
+		if token.Type == TokenForwardSlash || token.Type == TokenRightBrace {
 			p.lexer.Unread(token) // If the token is the start of a comment, it should be unread so the next call of ParseNext() reads the start of the comment
 		}
 	}()
@@ -123,6 +124,7 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 	default:
 		p.ThrowSyntaxError("Unexpected token \"", token.Literal, "\".")
 	}
+	// Return statement to make go happy even though it's unreachable since the throw will exit
 	return nil
 }
 

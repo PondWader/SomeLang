@@ -1,22 +1,54 @@
 DECLARE FLAG "run" AS string WITH DESCRIPTION "The entry point file to run"
 DECLARE FLAG "profile" AS string WITH DESCRIPTION "If passed the program execution will be profiled"
-DECLARE FLAG "profiler-viewer" AS boolean WITH DESCRIPTIONn "If passed the profiler results viewer will be opened"
+DECLARE FLAG "profiler-viewer" AS boolean WITH DESCRIPTION "If passed the profiler results viewer will be opened"
 Parse flags passed to program
 
 IF "profile-viewer" flag is passed THEN
     CALL OpenProfilerViewer() FROM profiler package
-ELSE IF "run" flag is not passed THEN
+    RETURN
+END IF
+
+IF "run" flag is not passed THEN
     DISPLAY "You must specify an entrypoint with the -run flag"
     RETURN
 END IF
 
-SET content TO file contents of entrypoint file passed by the run flag
-IF error occured in reading file contents THEN
+SET entryPoint, err TO absolute file path of "run" flag value 
+IF err IS NOT null THEN 
+    DISPLAY "Error resolving entry point file path: " + err
+END IF
+
+OPEN file AT entryPoint
+SET content, err TO file contents of entryPoint file
+CLOSE file AT entryPoint
+IF err IS NOT null THEN
     DISPLAY "Error reading entry point file: " + error message
     RETURN
 END IF
 
-SET ast TO result of running Parse(content, "run" flag value, map of global function definitions from standard_library package, map of module definitions from the standard_library module packages) function from interpreter package 
+SET parser TO new Parser(content, entryPoint, {
+    "print": printDef FROM standardlibrary package,
+    "input": inputDef FROM standardlibrary package
+}, {
+    "key_value": {
+        "open": OpenDef FROM keyvalue package
+    }
+}) FROM interpreter package
+SET ast TO parser.parse()
 
-CALL Execute(ast, entry, "run" flag value, map of ) FROM the interpreter package
+SET profileResult TO execute(ast, entryPoint, value of "profile" flag, {
+    "print": print FROM standardlibrary package,
+    "input": input FROM standardlibrary package
+}, {
+    "key_value": {
+        "open": open FROM keyvalue package
+    }
+}) FROM interpreter package
+
+IF value of "profile" flag IS true
+    OPEN file AT "profiler_results.csv"
+    WRITE profileResult.toCsv() TO "profiler_results.csv"
+    CLOSE file AT "profiler_results.csv"
+    DISPLAY "Saved profiler results to profiler_results.csv"
+END IF
 

@@ -6,12 +6,6 @@ import (
 	"os"
 )
 
-type Token struct {
-	Type    TokenType
-	Literal string
-	Line    int
-}
-
 type TokenType uint8
 
 const (
@@ -77,6 +71,12 @@ const (
 
 	TokenEOF
 )
+
+type Token struct {
+	Type    TokenType
+	Literal string
+	Line    int
+}
 
 type Lexer struct {
 	content     string

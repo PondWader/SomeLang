@@ -33,6 +33,7 @@ func main() {
 		fmt.Println("Error resolving entry point path:", err)
 		return
 	}
+	// os.ReadFile function automatically opens and closes file
 	content, err := os.ReadFile(*entryPoint)
 	if err != nil {
 		fmt.Println("Error reading entry point file:", err)
@@ -58,6 +59,7 @@ func main() {
 		},
 	})
 	if *runProfiler {
+		// os.WriteFile function automatically opens and closes file
 		os.WriteFile("profiler_results.csv", []byte(profileResult.ToCsv()), 0644)
 		fmt.Println("Saved profiler results to profiler_results.csv")
 	}

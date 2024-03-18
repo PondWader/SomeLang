@@ -1,8 +1,9 @@
-DEFINE FUNCTION execute(ast: Node[], fileName: string, globals: map[string]any, modules: map[string]map[string]any):
-	SET env TO new Environment(null, new Call(fileName, 0, "main"))
+DEFINE FUNCTION execute(ast: Node[], fileName: string, globals: map[string]any, modules: map[string]map[string]any) RETURNS ProfileResult:
+	SET env TO new Environment(null, new Call(fileName, 0, "main"), modules, runProfiler)
 
 	START LOOP FOR name, val IN globals:
-		env.Set(name, val)
+		CALL env.Set(name, val)
 	END LOOP
 
 	CALL env.Execute(ast)
+	RETURN env.getProfileResult()

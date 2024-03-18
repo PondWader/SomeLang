@@ -75,6 +75,8 @@ DECLARE OBJECT Lexer:
 
     constructor(content: string) -> Lexer:
         this.content = content
+		this.cursor = 0
+		this.currentLine = 1
 
     DEFINE PUBLIC METHOD next() RETURNS Token, error:
         SET currentStr TO ""
@@ -86,8 +88,8 @@ DECLARE OBJECT Lexer:
                 CONTINUE TO NEXT LOOP ITERATION
             END IF
 
-            SET token TO getCharTokenType(char)
-            IF an error was NOT returned by call of getCharTokenType(char) THEN
+            SET token, err TO getCharTokenType(char)
+            IF err IS NOT null THEN
                 if token == TokenType.NewLine THEN
                     SET this.currentLine TO this.currentLine + 1
                 END IF
@@ -232,8 +234,6 @@ DECLARE OBJECT LexerPos:
 			CALL this.lexer.setCurrentLine(originalLine)
 			CALL this.lexer.setCursor(originalCursor)
 
-	package interpreter
-
 DECLARE FUNCTION getCharTokenType(char: string) RETURNS TokenType, error:
 	MATCH char TO
 		case ":":
@@ -313,6 +313,8 @@ DECLARE FUNCTION getLiteralTokenType(literal: string) RETURNS TokenType {
 			return TokenType.AsStatement
 		case "while":
 			return TokenType.WhileStatement
+		case "range":
+			return TokenType.TokenRangeStatement
 
 		case "int8":
 			return TokenTypeInt8

@@ -8,6 +8,7 @@ DECLARE OBJECT Parser:
         SET this.lexer TO new Lexer(content)
         SET this.filePath = filePath
         SET this.currentTypeEnv TO new TypeEnvironment(null, null, 0)
+        SET this.modules TO modules
 
         START LOOP FOR name, def IN globals:
             this.currentTypeEnv.set(name, def)
@@ -26,18 +27,18 @@ DECLARE OBJECT Parser:
 
     DEFINE PUBLIC METHOD ParseNext(inBlock: boolean) RETURNS Node:
         SET token TO this.lexer.nextOrExit()
-        IF token.Type IS TokenType.NewLine OR token.Type IS TokenType.SemiColon THEN
+        IF token.type IS TokenType.NewLine OR token.type IS TokenType.SemiColon THEN
             RETURN this.parseNext(inBlock)
         END IF
-        IF token.Type IS TokenType.RightBrace AND inBlock IS true THEN
+        IF token.type IS TokenType.RightBrace AND inBlock IS true THEN
             RETURN null
         END IF
 
-        IF token.Type IS TokenType.ForwardSlash THEN
+        IF token.type IS TokenType.ForwardSlash THEN
             IF this.lexer.PeekOrExit().type IS TokenType.ForwardSlash THEN
                 START LOOP
                     SET token, err TO this.lexer.next()
-                    IF err IS null AND token.Type == TokenType.NewLine OR token.Type == TokenType.EOF THEN
+                    IF err IS null AND token.type == TokenType.NewLine OR token.type == TokenType.EOF THEN
                         RETURN this.parseNext(inBlock)
                     END IF
                 END LOOP
@@ -49,12 +50,16 @@ DECLARE OBJECT Parser:
         END IF
 
         DEFER anonymous function ():
+            SET err TO recovery FROM panic 
+            IF err IS NOT null THEN:
+                panic with err
+            END IF
             SET token TO this.expectToken(TokenType.EOF, TokenType.NewLine, TokenType.SemiColon, TokenType.ForwardSlash, TokenType.RightBrace)
-            IF token.Type IS TokenType.ForwardSlash OR token.Type IS TokenType.RightBrace THEN
+            IF token.type IS TokenType.ForwardSlash OR token.type IS TokenType.RightBrace THEN
                 this.lexer.unread(token)
             END IF
 
-        MATCH token.Type TO
+        MATCH token.type TO
             CASE TokenType.VarDeclaration:
                 RETURN this.parseVarDeclaration()
             CASE TokenType.FunctionDeclaration:
@@ -75,19 +80,19 @@ DECLARE OBJECT Parser:
                 END IF
 
                 SET returnValue, returnValueDef TO this.parseValue(returnType)
-                if returnValueDef.Equals(returnType) IS false {
+                if returnValueDef.equals(returnType) IS false {
                     CALL this.throwTypeError("Incorrect type of value returned.")
                 }
                 CALL this.currentTypeEnv.SetReturned()
                 RETURN new Return(returnValue)
             CASE TokenType.ForStatement:
-                RETURN this.ParseForStatement()
+                RETURN this.parseForStatement()
             CASE TokenType.StructDeclaration:
-                RETURN this.ParseStructDeclaration()
+                RETURN this.parseStructDeclaration()
             CASE TokenType.ImportStatement:
-                RETURN this.ParseImportStatement()
+                RETURN this.parseImportStatement()
             CASE TokenType.WhileStatement:
-                RETURN this.ParseWhileStatement()
+                RETURN this.parseWhileStatement()
             CASE TokenType.EOF:
                 RETURN null
             DEFAULT:
@@ -120,23 +125,171 @@ DECLARE OBJECT Parser:
     DEFINE PUBLIC METHOD expectToken(tokenType: TokenType...) RETURNS Token:
         SET token TO this.lexer.nextOrExit()
         START LOOP FOR allowedType IN tokenType:
-            IF token.Type == allowedType THEN 
+            IF token.type == allowedType THEN 
                 RETURN token
             END IF
         END LOOP
         this.throwSyntaxError("Unexpected token \"", token.Literal, "\".")
         RETURN empty Token
 
-func (p *Parser) ThrowSyntaxError(msg ...any) {
-	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Syntax error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
-	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))
-	fmt.Println(" ", aurora.Gray(18, "in "+p.filePath))
-	os.Exit(1)
-}
+    DEFINE PUBLIC METHOD throwSyntaxError(msg: any...):
+        DISPLAY red text "[ERROR] " + gray text "Syntax error at line " + this.lexer.getCurrentLine() AS string + ":"
+        DISPLAY "  " + gray text "> " + red text msg formatted as strings joined by " "
+        DISPLAY "  " + gray text "in " + this.filePath 
+        EXIT PROGRAM WITH CODE 1 
 
-func (p *Parser) ThrowTypeError(msg ...any) {
-	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Type error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
-	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))
-	fmt.Println(" ", aurora.Gray(18, "in "+p.filePath))
-	os.Exit(1)
-}
+    DEFINE PUBLIC METHOD throwTypeError(msg: any...):
+        DISPLAY red text "[ERROR] " + gray text "Type error at line " + this.lexer.getCurrentLine() AS string + ":"
+        DISPLAY "  " + gray text "> " + red text msg formatted as strings joined by " "
+        DISPLAY "  " + gray text "in " + this.filePath 
+        EXIT PROGRAM WITH CODE 1 
+
+    DEFINE PUBLIC METHOD parseValueExpression(value: Node, def: TypeDef) RETURNS Node, TypeDef:
+        SET token TO this.lexer.nextOrExit()
+        MATCH token.type TO 
+            CASE TokenType.LeftBracket:
+                SET funcDef, ok TO def AS FuncDef 
+                IF ok IS false THEN 
+                    CALL this.throwTypeError("Cannot call a non-function value")
+                END IF
+
+                INITIALIZE args AS array of Node WITH length AS length of funcDef.args 
+                SET i TO 0
+                START FOR i++
+                    SET token TO this.lexer.peekOrExit()
+                    IF token.type IS TokenType.RightBracket THEN
+                        CALL this.lexer.next()
+                        BREAK LOOP
+                    ELSE IF token.type IS TokenType.NewLine THEN 
+                        CALL this.lexer.next()
+                        SET i TO i - 1
+                        CONTINUE TO NEXT LOOP ITERATION
+                    END IF
+
+                    INITIALIZE argDef WITH TYPE TypeDef 
+                    IF i >= length of args AND funcDef.Variadic IS true THEN 
+                        INCREASE size of args by 1 
+                        SET argDef TO funcDef.args[length of funcDef.args - 1]
+                    ELSE IF i >= length of args THEN 
+                        CALL this.throwTypeError("Too many arguments passed to function.")
+                    ELSE 
+                        SET argDef TO funcDef.args[i]
+                    END IF
+
+                    SET val, valDef TO this.parseValue(argDef)
+                    IF valDef IS null THEN 
+                        CALL this.throwTypeError("Cannot use non-value expression as a function argument.")
+                    END IF
+                    IF NOT valDef.equals(argDef) THEN 
+                        CALL this.throwTypeError("Incorrect type passed for argument ", i+1, " of function call.")
+                    END IF
+
+                    SET args[i] TO val 
+                    SET token TO this.expectToken(TokenType.RightBracket, TokenType.Comma, TokenType.NewLine)
+                    IF token.type IS TokenType.RightBracket THEN 
+                        BREAK LOOP 
+                    ELSE IF token.type IS TokenType.NewLine THEN 
+                        IF i < length of funcDef.args THEN 
+					        CALL this.throwTypeError("Expected comma after function argument.")
+                        END IF
+                    END IF
+                END LOOP
+
+                IF i + 1 < length of funcDef.args THEN
+                    CALL this.throwTypeError("Not enough arguments passed to function.")
+                END IF
+
+                RETURN this.parseValueExpression(new FuncCall(args, value), funcDef.returnType)
+
+            case TokenType.LeftSquareBracket:
+                SET index, indexDef TO this.parseValue(null)
+                if indexDef.isInteger() IS false THEN 
+                    CALL this.throwTypeError("Arrays must be indexed with an integer value.")
+                END IF
+                SET arrayDef, ok TO def AS ArrayDef
+                IF ok IS false THEN 
+                    CALL this.throwTypeError("Cannot access index on non-array value.")
+                END IF
+                CALL this.expectToken(TokenType.RightSquareBracket)
+                RETURN getGenericTypeNode(arrayDef.elementType).getArrayIndex(value, index), arrayDef.elementType 
+
+            case TokenType.Period:
+                SET structDef, ok TO def AS StructDef 
+                IF ok IS true THEN 
+                    SET propertyName TO this.expectToken(TokenType.Identifier).literal 
+                    SET propertyIndex, ok TO structDef.properties[propertyName]
+                    IF ok IS false THEN 
+                        this.throwTypeError("Property ", propertyName, " does not exist on struct ", structDef.name, ".")
+                    END IF
+                    SET propertyDef TO structDef.propertyDefs[propertyIndex]
+
+                    RETURN new StructProperty(value, propertyIndex, propertyDef.getGenericType() IS GenericType.Func)
+                END IF
+
+                SET moduleDef, ok TO def AS ModuleDef 
+                IF ok IS false THEN 
+			        this.throwTypeError("Properties and methods can only be accessed on modules and structs.")
+                END IF
+
+                SET property TO this.expectToken(TokenType.Identifier).Literal 
+                SET propertyDef, ok TO moduleDef.properties[property]
+                IF ok IS false THEN 
+			        this.throwTypeError("Property ", property, " does not exist on module ", (value AS Identifier).Name, ".")
+                END IF
+
+                RETURN this.parseValueExpression(new MapValue(value, property))
+
+        CALL this.lexer.unread(token)
+        RETURN value, def 
+
+    DEFINE PUBLIC METHOD parseMathsOperation(value: Node, def: TypeDef, onlyMultiplication: boolean) RETURNS Node, TypeDef:
+        SET token TO this.lexer.nextOrExit()
+        SET operationType TO token.type 
+        IF operationType IS NOT TokenType.Plus AND operationType IS NOT TokenType.Dash AND operationType IS NOT TokenType.Asterisk AND operationType IS NOT TokenType.ForwardSlash THEN 
+            this.lexer.unread(token)
+            RETURN value, def
+        END IF
+
+        if def.isNumber() IS false THEN 
+		    this.throwTypeError("Mathematical operations cannot be performed on values that don't represent a number.")
+        END IF
+
+        START LOOP 
+            SET rhsVal, rhsDef TO this.parsePartialValue(def)
+            IF rhsDef.Equals(def) IS false THEN 
+                CALL this.throwTypeError("Mathematical operations must be performed on value of the same type.")
+            END IF
+            IF onlyMultiplication IS true AND operationType IS NOT TokenType.Asterisk AND operationType IS NOT TokenType.ForwardSlash THEN 
+                RETURN value, def
+            END IF
+
+            INITIALIZE operation AS MathsOperationType 
+            MATCH operationType TO
+                CASE TokenType.Asterisk:
+                    SET operation TO MathsMultiplication 
+                case TokenType.ForwardSlash: 
+                    SET operation TO MathsDivision 
+                case TokenType.Plus: 
+                    SET operation TO MathsAddition 
+                case TokenType.Dash:
+                    SET operation TO MathsSubtraction 
+                default:
+                    panic "Non-operation token passed as operationType token"
+
+            SET token TO this.lexer.nextOrExitt()
+            IF token.type IS TokenType.Asterisk OR token.type IS TokenType.ForwardSlash THEN 
+                CALL this.lexer.unread(token)
+                SET rhsVal, _ TO this.parseMathsOperation(rhsVal, def, true)
+                SET token TO this.lexer.nextOrExit()
+            END IF
+            SET value TO getGenericTypeNode(def).getMathsOperation(operation, value, rhsVal)
+            IF token.type IS NOT TokenType.Asterisk AND token.type IS NOT TokenType.ForwardSlash AND token.type IS NOT TokenType.Plus AND token.type IS NOT TokenType.Dash THEN 
+                CALL this.lexer.unread(token)
+                RETURN value, def
+            END IF
+            SET operationType TO token.type
+        END LOOP
+
+
+
+
