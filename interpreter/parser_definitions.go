@@ -40,12 +40,7 @@ func (p *Parser) ParseTypeDef() TypeDef {
 	switch token.Type {
 	case TokenFunctionDeclaration:
 		_, argDefs, _, returnType := p.ParseFunctionDef()
-		return FuncDef{
-			GenericTypeDef{TypeFunc},
-			argDefs,
-			false,
-			returnType,
-		}
+		return NewFuncDef(argDefs, false, returnType)
 
 	case TokenTypeMap:
 		p.ExpectToken(TokenLeftSquareBracket)
@@ -53,11 +48,7 @@ func (p *Parser) ParseTypeDef() TypeDef {
 		p.ExpectToken(TokenRightSquareBracket)
 		valueType := p.ParseTypeDef()
 
-		return MapDef{
-			GenericTypeDef{TypeMap},
-			keyType,
-			valueType,
-		}
+		return NewMapDef(keyType, valueType)
 
 	case TokenLeftSquareBracket:
 		token = p.ExpectToken(TokenRightSquareBracket, TokenNumber)
@@ -69,11 +60,7 @@ func (p *Parser) ParseTypeDef() TypeDef {
 			}
 			p.ExpectToken(TokenRightSquareBracket)
 		}
-		return ArrayDef{
-			GenericTypeDef: GenericTypeDef{TypeArray},
-			ElementType:    p.ParseTypeDef(),
-			Size:           size,
-		}
+		return NewArrayDef(p.ParseTypeDef(), size)
 	}
 
 	return GenericTypeDef{

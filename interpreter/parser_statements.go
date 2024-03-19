@@ -96,10 +96,7 @@ func (p *Parser) ParseImportStatement() environment.Node {
 		p.lexer.Unread(token)
 	}
 
-	p.currentTypeEnv.Set(identifier, ModuleDef{
-		GenericTypeDef: GenericTypeDef{TypeModule},
-		Properties:     moduleDef,
-	})
+	p.currentTypeEnv.Set(identifier, NewModuleDef(moduleDef))
 	return &nodes.Import{
 		Module:     module,
 		Identifier: identifier,

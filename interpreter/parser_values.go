@@ -380,7 +380,7 @@ func (p *Parser) ParsePartialValue(implicitType TypeDef) (environment.Node, Type
 			// get the type from, an array with no elements and no explicit type definition is not allowed.
 			p.ThrowTypeError("An array of an unkown type cannot have 0 elements.")
 		}
-		return GetGenericTypeNode(elementType).GetArrayInitialization(elements), ArrayDef{GenericTypeDef: GenericTypeDef{TypeArray}, ElementType: elementType, Size: size}
+		return GetGenericTypeNode(elementType).GetArrayInitialization(elements), NewArrayDef(elementType, size)
 
 	case TokenDash:
 		val, def := p.ParseValue(nil)

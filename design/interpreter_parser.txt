@@ -480,7 +480,7 @@ DECLARE OBJECT Parser:
                 IF elementType IS null THEN 
                     CALL this.throwTypeError("An array of an unkown type cannot have 0 elements.")
                 END IF
-                RETURN getGenericTypeNode(elementType).GetArrayInitialization(elements), new ArrayDef(new GenericTypeDef(GenericType.Array), elementType, size)
+                RETURN getGenericTypeNode(elementType).GetArrayInitialization(elements), new ArrayDef(elementType, size)
             
             CASE TokenType.Dash:
                 SET val, def TO this.parseValue(null)
@@ -526,7 +526,7 @@ DECLARE OBJECT Parser:
     DEFINE PUBLIC METHOD parseFunctionDeclaration() RETURNS Node:
         SET funcName, argDefs, agNames, returnType TO this.parseFunctionDef()
 
-        CALL this.currentTypeEnv.set(funcName, new FuncDef(new GenericTypeDef(GenericType.Func), argDefs, false, returnType))
+        CALL this.currentTypeEnv.set(funcName, new FuncDef(argDefs, false, returnType))
 
         SET args TO map[string]TypeDef WITH LENGTHS length of argDefs 
         START LOOP FOR i, name IN argNames 
@@ -574,7 +574,7 @@ DECLARE OBJECT Parser:
             CALL this.lexer.unread(token)
         END IF
 
-        CALL this.currentTypeEnv.set(identifier, new ModuleDef(new GenericTypeDef(GenericType.Module), moduleDef))
+        CALL this.currentTypeEnv.set(identifier, new ModuleDef(moduleDef))
         RETURN new Import(module, identifier)
 
     DEFINE PUBLIC METHOD parseForStatement() RETURNS Node:
@@ -661,7 +661,7 @@ DECLARE OBJECT Parser:
         MATCH token.type TO 
             CASE TokenType.FunctionDeclaration:
                 SET _, argDefs, _, returnType TO this.parseFunctionDef()
-                RETURN new FuncDef(new GenericTypeDef(GenericType.TypeFunc), argDefs, false, returnType)
+                RETURN new FuncDef(argDefs, false, returnType)
 
             CASE TokenType.Map:
                 CALL this.expectToken(TokenType.LeftSquareBracket)
@@ -669,7 +669,7 @@ DECLARE OBJECT Parser:
                 CALL this.expectToken(TokenType.RightSquareBracket)
                 SET valueType TO this.parseTypeDef()
 
-                RETURN new MapDef(new GenericTypeDef(GenericType.Map), keyType, valueType)
+                RETURN new MapDef(keyType, valueType)
 
             CASE TokenType.LeftSquareBracket:
                 SET token TO this.expectToken(TokenType.RightSquareBracket, TokenType.Number)
@@ -681,7 +681,7 @@ DECLARE OBJECT Parser:
                     END IF
                     CALL this.expectToken(TokenType.RightSquareBracket)
                 END IF
-                RETURN new ArrayDef(new GenericTypeDef(GenericType.TypeArray), this.parseTypeDef, size)
+                RETURN new ArrayDef(this.parseTypeDef, size)
 
         RETURN new GenericTypeDef(typeTokenToPrimitiveType(token))
 

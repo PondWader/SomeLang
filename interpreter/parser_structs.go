@@ -24,12 +24,7 @@ func (p *Parser) ParseStructDeclaration() environment.Node {
 	name := p.ExpectToken(TokenIdentifier).Literal
 
 	p.ExpectToken(TokenLeftBrace)
-	def := StructDef{
-		GenericTypeDef: GenericTypeDef{TypeStruct},
-		Properties:     make(map[string]int),
-		PropertyDefs:   make([]TypeDef, 0),
-		Name:           name,
-	}
+	def := NewStructDef(make(map[string]int), make([]TypeDef, 0), name)
 
 	methodDeclarations := make([]structMethodDeclaration, 0)
 
@@ -53,11 +48,7 @@ func (p *Parser) ParseStructDeclaration() environment.Node {
 		} else {
 			methodName, argDefs, argNames, returnType := p.ParseFunctionDef()
 
-			funcDef := FuncDef{
-				GenericTypeDef: GenericTypeDef{TypeFunc},
-				Args:           argDefs,
-				ReturnType:     returnType,
-			}
+			funcDef := NewFuncDef(argDefs, false, returnType)
 			args := make(map[string]TypeDef, len(argDefs))
 			for i, name := range argNames {
 				args[name] = argDefs[i]
