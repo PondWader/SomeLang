@@ -29,7 +29,7 @@ DECLARE INTERFACE TypeDef:
 	PUBLIC isInteger() boolean
 	PUBLIC isNumber() boolean
 
-DECLARE GenericTypeDef IMPLEMENTS TypeDef:
+DECLARE OBJECT GenericTypeDef IMPLEMENTS TypeDef:
     PUBLIC type: GenericType 
     constructor(genericType: GenericType):
         SET this.type TO genericType
@@ -45,4 +45,90 @@ DECLARE GenericTypeDef IMPLEMENTS TypeDef:
 
     DECLARE PUBLIC METHOD isInteger() RETURNS boolean:
         SET genericType TO this.type 
-	    return genericType == TypeInt8 || genericType == TypeInt16 || genericType == TypeInt32 || genericType == TypeInt64 || genericType == TypeUint8 || genericType == TypeUint16 || genericType == TypeUint32 || genericType == TypeUint64
+	    RETURN genericType IS TypeInt8 OR genericType IS TypeInt16 OR genericType IS TypeInt32 OR genericType IS TypeInt64 OR genericType IS TypeUint8 OR genericType IS TypeUint16 OR genericType IS TypeUint32 OR genericType IS TypeUint64
+
+	DECLARE PUBLIC METHOD isNumber() RETURNS boolean:
+		SET genericType TO this.type 
+		RETURN this.isInteger() OR genericType IS GenericType.Float32 OR genericType IS GenericType.Float64
+
+DECLARE OBJECT FuncDef EXTENDS GenericTypeDef:
+	PUBLIC args: TypeDef[]
+	PUBLIC variadic: boolean 
+	PUBLIC returnType: TypeDef 
+
+	constructor(args: TypeDef[], variadic: boolean, returnType: TypeDef):
+        CALL super(GenericType.Func)
+		SET this.args TO args 
+		SET this.variadic TO variadic 
+		SET this.returnType TO returnType
+
+	DECLARE PUBLIC METHOD equals(other: TypeDef) RETURNS boolean:
+		IF other.getGenericType() IS GenericType.Any THEN 
+			RETURN true
+		END IF
+		SET otherDef, ok TO other AS FuncDef 
+		IF ok IS false OR length of this.args IS NOT length of otherDef.args THEN 
+			RETURN false
+		END IF
+		START LOOP FOR i, argDef IN def.args
+			IF otherDef.args[i].equals(argDef) THEN 
+				RETURN false 
+			END IF 
+		END LOOP
+		RETURN this.returnType.equals(otherDef.returnType)
+
+DECLARE OBJECT MapDef EXTENDS GenericTypeDef:
+	PUBLIC keyType: TypeDef 
+	PUBLIC valueType: TypeDef 
+
+	constructor(keyType: TypeDef, valueType: TypeDef):
+        CALL super(GenericType.Map)
+		SET this.keyType TO keyType 
+		SET this.valueType TO valueType
+
+	DECLARE PUBLIC METHOD equals(other typeType) RETURNS boolean:
+		IF other.getGenericType() IS GenericType.Any THEN 
+			RETURN true
+		END IF
+		SET otherDef, ok TO other AS MapDef 
+		RETURN ok AND this.keyType.equals(otherDef.keyType) AND this.valueType.equals(otherDef.valueType)
+	
+DECLARE OBJECT ArrayDef EXTENDS GenericTypeDef:
+	PUBLIC elementType: TypeDef 
+	PUBLIC size: integer 
+
+	constructor(elementType: TypeDef, size: integer):
+        CALL super(GenericType.Array)
+		SET this.elementType TO elementType 
+		SET this.size TO size
+
+	DECLARE PUBLIC METHOD equals(other: TypeDef) RETURNS boolean:
+		IF other.getGenericType() IS GenericType.Any THEN
+			RETURN true 
+		END IF 
+		SET otherDef, ok TO other AS ArrayDef 
+		RETURN ok AND this.elementType.equals(otherDef.elementType)
+
+DECLARE OBJECT StructDef EXTENDS GenericTypeDef:
+	PUBLIC properties: map[string]integer 
+	PUBLIC propertyDefs: TypeDef[]
+	PUBLIC name: string 
+
+	constructor(properties: map[string]integer, propertyDefs: TypeDef[], name: string):
+        CALL super(GenericType.Struct)
+		SET this.properties TO properties 
+		SET this.propertyDefs TO propertyDefs
+		SET this.name TO name
+
+	DECLARE PUBLIC METHOD equals(other: TypeDef) RETURNS boolean:
+		RETURN other.getGenericType() IS GenericType.Any 
+
+DECLARE OBJECT ModuleDef EXTENDS GenericTypeDef:
+	PUBLIC properties: map[string]TypeDef 
+
+	constructor(properties: map[string]TypeDef):
+        CALL super(GenericType.Module)
+		SET this.properties TO properties
+
+	DECLARE PUBLIC METHOD equals(other: TypeDef) RETURNS boolean:
+		RETURN false

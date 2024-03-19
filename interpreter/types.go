@@ -55,7 +55,7 @@ func (def GenericTypeDef) IsInteger() bool {
 }
 
 func (def GenericTypeDef) IsNumber() bool {
-	genericType := def.GetGenericType()
+	genericType := def.Type
 	return def.IsInteger() || genericType == TypeFloat32 || genericType == TypeFloat64
 }
 
@@ -65,6 +65,15 @@ type FuncDef struct {
 	// Whether or not the function has a variable number of arguments
 	Variadic   bool
 	ReturnType TypeDef
+}
+
+func NewFuncDef(args []TypeDef, variadic bool, returnType TypeDef) FuncDef {
+	return FuncDef{
+		GenericTypeDef: GenericTypeDef{TypeFunc},
+		Args:           args,
+		Variadic:       variadic,
+		ReturnType:     returnType,
+	}
 }
 
 func (def FuncDef) Equals(other TypeDef) bool {
@@ -89,6 +98,14 @@ type MapDef struct {
 	ValueType TypeDef
 }
 
+func NewMapDef(keyType TypeDef, valueType TypeDef) MapDef {
+	return MapDef{
+		GenericTypeDef: GenericTypeDef{TypeMap},
+		KeyType:        keyType,
+		ValueType:      valueType,
+	}
+}
+
 func (def MapDef) Equals(other TypeDef) bool {
 	if other.GetGenericType() == TypeAny {
 		return true
@@ -101,6 +118,14 @@ type ArrayDef struct {
 	GenericTypeDef
 	ElementType TypeDef
 	Size        int
+}
+
+func NewArrayDef(elementType TypeDef, size int) ArrayDef {
+	return ArrayDef{
+		GenericTypeDef: GenericTypeDef{TypeArray},
+		ElementType:    elementType,
+		Size:           size,
+	}
 }
 
 func (def ArrayDef) Equals(other TypeDef) bool {
@@ -118,6 +143,15 @@ type StructDef struct {
 	Name         string
 }
 
+func NewStructDef(properties map[string]int, propertyDefs []TypeDef, name string) StructDef {
+	return StructDef{
+		GenericTypeDef: GenericTypeDef{TypeStruct},
+		Properties:     properties,
+		PropertyDefs:   propertyDefs,
+		Name:           name,
+	}
+}
+
 func (def StructDef) Equals(other TypeDef) bool {
 	return other.GetGenericType() == TypeAny
 }
@@ -125,6 +159,13 @@ func (def StructDef) Equals(other TypeDef) bool {
 type ModuleDef struct {
 	GenericTypeDef
 	Properties map[string]TypeDef
+}
+
+func NewModuleDef(properties map[string]TypeDef) ModuleDef {
+	return ModuleDef{
+		GenericTypeDef: GenericTypeDef{TypeModule},
+		Properties:     properties,
+	}
 }
 
 func (def ModuleDef) Equals(other TypeDef) bool {

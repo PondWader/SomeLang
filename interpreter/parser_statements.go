@@ -34,12 +34,11 @@ func (p *Parser) ParseVarDeclaration() environment.Node {
 func (p *Parser) ParseFunctionDeclaration() environment.Node {
 	funcName, argDefs, argNames, returnType := p.ParseFunctionDef()
 
-	p.currentTypeEnv.Set(funcName, FuncDef{
-		GenericTypeDef{TypeFunc},
+	p.currentTypeEnv.Set(funcName, NewFuncDef(
 		argDefs,
 		false,
 		returnType,
-	})
+	))
 
 	args := make(map[string]TypeDef, len(argDefs))
 	for i, name := range argNames {
