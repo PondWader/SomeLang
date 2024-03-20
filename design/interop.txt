@@ -1,0 +1,25 @@
+DEFINE FUNCTION createRuntimeStruct(structVal: any, methodOrder: string[]) RETURNS any[]:
+    SET val TO reflective value of structVal 
+    SET runtimeStruct TO array of type any with length of the number of methods in val
+
+    START LOOP FOR i, methodName IN methodOrder 
+        SET method TO reflective method in val with methodName name
+        IF method IS null THEN 
+            panic methodName + " is not a valid method on the struct"
+        END IF
+
+        SET runtimeStruct[i] TO anonymous function(args: ...any) RETURNS any:
+            SET argVals TO new array of reflective values with length length of args - 1 
+            START LOOP FOR i, arg IN args 
+                IF i IS 0 THEN 
+                    CONTINUE TO NEXT LOOP ITERATION
+                END IF
+                SET argVals[i - 1] TO reflective value of arg 
+            END LOOP
+            SET out TO array of returned values of calling method with argVals as arguments 
+            IF length of out > 0 THEN 
+                RETURN out[0]
+            END IF
+            RETURN null
+    END LOOP
+    RETURN runtimeStruct
