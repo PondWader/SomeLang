@@ -24,10 +24,10 @@ DECLARE ENUM GenericType (
 )
 
 DECLARE INTERFACE TypeDef:
-	PUBLIC getGenericType() GenericType
-	PUBLIC equals(TypeDef) boolean
-	PUBLIC isInteger() boolean
-	PUBLIC isNumber() boolean
+	PUBLIC getGenericType() RETURNS GenericType
+	PUBLIC equals(TypeDef) RETURNS boolean
+	PUBLIC isInteger() RETURNS boolean
+	PUBLIC isNumber() RETURNS boolean
 
 DECLARE OBJECT GenericTypeDef IMPLEMENTS TypeDef:
     PUBLIC type: GenericType 
