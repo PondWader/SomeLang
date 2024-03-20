@@ -132,3 +132,52 @@ DECLARE OBJECT ModuleDef EXTENDS GenericTypeDef:
 
 	DECLARE PUBLIC METHOD equals(other: TypeDef) RETURNS boolean:
 		RETURN false
+
+DECLARE OBJECT TypeEnvironment:
+	PUBLIC identifiers: map[string]TypeDef
+	PUBLIC customTypes: map[string]TypeDef
+	PUBLIC returnType: TypeDef
+	PUBLIC returned: boolean
+	PUBLIC parent: TypeEnvironment
+	PUBLIC Depth: integer
+
+	constructor(parent: TypeEnvironment, returnType: TypeDef, depth: integer):
+		SET this.parent TO parent 
+		SET this.returnType TO returnType 
+		SET this.depth TO depth 
+
+	DECLARE PUBLIC newChild(returnType: TypeDef) RETURNS TypeEnvironment:
+		RETURN new TypenEnvironment(this, returnType, this.depth + 1)
+
+	DECLARE PUBLIC METHOD getReturnType() RETURNS TypeDef:
+		IF this.returnType IS NOT null THEN 
+			RETURN this.returnType 
+		ELSE IF this.parent IS NOT null THEN 
+			RETURN this.parent.getReturnType()
+		END IF
+		RETURN null 
+
+	DECLARE PUBLIC METHOD getParent() RETURNS TypeEnvironment:
+		RETURN this.parent 
+
+	DECLARE PUBLIC METHOD get(name: string) RETURNS TypeDef, integer:
+		RETURN this.getWithDepthCounter(name, 0)
+
+	DECLARE PUBLIC METHOD getWithDepthCounter(name: string, depth: integer) RETURNS TypeDef, integer:
+		SET val, ok TO this.identifiers[name]
+		IF ok IS true THEN 
+			RETURN val, depth 
+		END IF 
+		IF this.parent IS NOT null THEN 
+			RETURN this.parent.getWithDepthCounter(name, depth + 1)
+		END IF
+		RETURN null, -1
+
+	DECLARE PUBLIC METHOD set(name: string, value: TypeDef):
+		SET this.identifiers[name] TO value 
+
+	DECLARE PUBLIC METHOD getReturned() RETURNS boolean:
+		RETURN this.returned 
+
+	DECLARE PUBLIC METHOD setReturned():
+		SET this.returned TO true

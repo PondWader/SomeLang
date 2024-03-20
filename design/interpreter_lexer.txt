@@ -61,17 +61,17 @@ DECLARE ENUM TokenType (
 DECLARE OBJECT Token:
    	PUBLIC type: TokenType
 	PUBLIC literal: string
-	PUBLIC line:   int 
+	PUBLIC line:   integer 
 
-    constructor(type: TokenType, literal: string, line: int):
+    constructor(type: TokenType, literal: string, line: integer):
         SET this.type TO type
         SET this.literal TO literal
         SET this.line TO line
 
 DECLARE OBJECT Lexer:
 	PRIVATE content: string
-	PRIVATE cursor: int
-	PRIVATE currentLine: int
+	PRIVATE cursor: integer
+	PRIVATE currentLine: integer
 
     constructor(content: string) RETURNS Lexer:
         SET this.content TO content
@@ -187,16 +187,16 @@ DECLARE OBJECT Lexer:
 		END LOOP
 		RETURN empty string, error "reached EOF without string finishing"
 
-	DEFINE PUBLIC METHOD getCurrentLine() RETURNS int:
+	DEFINE PUBLIC METHOD getCurrentLine() RETURNS integer:
 		RETURN this.currentLine
 
-	DEFINE PUBLIC METHOD setCurrentLine(line: int):
+	DEFINE PUBLIC METHOD setCurrentLine(line: integer):
 		SET this.currentLine TO LINE
 
-	DEFINE PUBLIC METHOD getCursor() RETURNS int:
+	DEFINE PUBLIC METHOD getCursor() RETURNS integer:
 		RETURN this.cursor
 
-	DEFINE PUBLIC METHOD setCursor(cursor: int):
+	DEFINE PUBLIC METHOD setCursor(cursor: integer):
 		SET this.cursor TO cursor
 
 	DEFINE PUBLIC METHOD Unread(token: Token):
@@ -215,11 +215,11 @@ DECLARE OBJECT Lexer:
 
 
 DECLARE OBJECT LexerPos:
-   	PUBLIC cursor: int
-	PUBLIC line: int
+   	PUBLIC cursor: integer
+	PUBLIC line: integer
 	PRIVATE lexer: Lexer 
 
-    constructor(cursor: int, line: int, lexer: Lexer):
+    constructor(cursor: integer, line: integer, lexer: Lexer):
         SET this.cursor TO cursor
         SET this.line TO line
         SET this.lexer TO lexer

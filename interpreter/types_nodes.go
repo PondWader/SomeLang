@@ -1,5 +1,7 @@
 package interpreter
 
+// Utility required to create nodes of specific generic types since Go requires all types to be strictly declared
+
 import (
 	"main/interpreter/environment"
 	"main/interpreter/nodes"

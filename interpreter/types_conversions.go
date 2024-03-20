@@ -1,5 +1,7 @@
 package interpreter
 
+// Required to convert language types to Go types (since Go also uses integers with defined sizes)
+
 // Maps go int64 values to other integer sizes using a language generic type definition
 func ConvertInt64ToTypeDef(n int64, genericDef GenericType) any {
 	switch genericDef {

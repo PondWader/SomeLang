@@ -211,7 +211,7 @@ DECLARE OBJECT Parser:
                     CALL this.throwTypeError("Cannot access index on non-array value.")
                 END IF
                 CALL this.expectToken(TokenType.RightSquareBracket)
-                RETURN getGenericTypeNode(arrayDef.elementType).getArrayIndex(value, index), arrayDef.elementType 
+                RETURN new ArrayIndex(value, index), arrayDef.elementType 
 
             case TokenType.Period:
                 SET structDef, ok TO def AS StructDef 
@@ -282,7 +282,7 @@ DECLARE OBJECT Parser:
                 SET rhsVal, _ TO this.parseMathsOperation(rhsVal, def, true)
                 SET token TO this.lexer.nextOrExit()
             END IF
-            SET value TO getGenericTypeNode(def).getMathsOperation(operation, value, rhsVal)
+            SET value TO new MathsOperation(operation, value, rhsVal)
             IF token.type IS NOT TokenType.Asterisk AND token.type IS NOT TokenType.ForwardSlash AND token.type IS NOT TokenType.Plus AND token.type IS NOT TokenType.Dash THEN 
                 CALL this.lexer.unread(token)
                 RETURN value, def
@@ -341,14 +341,13 @@ DECLARE OBJECT Parser:
 
                     RETURN new Assignment(ident.Name, newVal, depth)
                 
-                SET genericTypeNode TO getGenericTypeNode(def)
-                SET arrayNode, indexNode, ok TO genericTypeNode.arrayIndexDetails(value)
+                SET indexNode, ok TO (value AS ArrayIndex)
                 IF ok IS true THEN 
                     SET newVal, newValDef TO this.parseValue(def)
                     IF newValDef.equals(def) IS false THEN 
 				        this.throwTypeError("Incorrect type in array element assignment.")
                     END IF
-                    RETURN genericTypeNode.getArrayAssignment(arrayNode, indexNode, newVal), def
+                    RETURN new ArrayAssignment(indexNode, newVal), def
                 ELSE 
                     this.throwSyntaxError("Left hand sie of assignment is not assignable.")
                 END IF
@@ -374,7 +373,7 @@ DECLARE OBJECT Parser:
                 IF rhsValDef.equals(def) IS FALSE THEN 
 			        this.throwTypeError("Right hand side of comparison must be the same type as the left hand side.")
                 END IF
-                RETURN this.parseOperator(getGenericTypeNode(def).getInequalityComparison(comparison, value, rhsVal), new GenericTypeDef(GeneicType.Bool))
+                RETURN this.parseOperator(new InequalityComparison(comparison, value, rhsVal), new GenericTypeDef(GeneicType.Bool))
             
             CASE TokenType.ExclamationMark:
                 CALL this.expectToken(TokenType.Equals)
@@ -480,14 +479,14 @@ DECLARE OBJECT Parser:
                 IF elementType IS null THEN 
                     CALL this.throwTypeError("An array of an unkown type cannot have 0 elements.")
                 END IF
-                RETURN getGenericTypeNode(elementType).GetArrayInitialization(elements), new ArrayDef(elementType, size)
+                RETURN new ArrayInitialization(elements), new ArrayDef(elementType, size)
             
             CASE TokenType.Dash:
                 SET val, def TO this.parseValue(null)
                 IF def.isNumber() IS false THEN 
 			        CALL this.throwTypeError("Cannot get negative value of non-number value.")
                 END IF
-                RETURN getGenericTypeNode(def).getMathsOperation(
+                RETURN new MathsOperation(
                     Maths.Subtraction,
                     new Value(convertInt64ToTypeDef(0, def.getGenericType())),
                     val
@@ -613,7 +612,7 @@ DECLARE OBJECT Parser:
         IF ok IS false THEN 
 		    CALL this.throwTypeError("Right hand side of range loop must either be an integer or array.")
         END IF
-        RETURN getGenericTypeNode(arrayDef.elementType).getLoopArray(valIdent, indexIdent, iterableValue, this.parseBlock(
+        RETURN new GenericTypeNode(arrayDef.elementType).getLoopArray(valIdent, indexIdent, iterableValue, this.parseBlock(
             {valIdent: arrayDef.elementType, indexIdent: new GenericTypeDef(GenericType.Int64)},
             null
         ))

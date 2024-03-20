@@ -1,14 +1,12 @@
 package interpreter
 
 type TypeEnvironment struct {
-	// TODO: abstract environment in to environment and then execution environment which extends it and possibly come up with a better name for this
 	identifiers map[string]TypeDef
 	customTypes map[string]TypeDef
-	ReturnType  TypeDef
+	returnType  TypeDef
 	returned    bool
 	parent      *TypeEnvironment
-	// How many parent environments there are
-	Depth int
+	Depth       int
 }
 
 func NewTypeEnvironment(parent *TypeEnvironment, returnType TypeDef, depth int) *TypeEnvironment {
@@ -20,8 +18,8 @@ func (e *TypeEnvironment) NewChild(returnType TypeDef) *TypeEnvironment {
 }
 
 func (e *TypeEnvironment) GetReturnType() TypeDef {
-	if e.ReturnType != nil {
-		return e.ReturnType
+	if e.returnType != nil {
+		return e.returnType
 	} else if e.parent != nil {
 		return e.parent.GetReturnType()
 	}
