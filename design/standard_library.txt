@@ -14,7 +14,6 @@ DEFINE FUNCTION input() RETURNS string:
 
 
 
-
 DECLARE OBJECT KeyValueDb:
     PRIVATE db: database instance 
 
@@ -32,18 +31,24 @@ DECLARE OBJECT KeyValueDb:
     DECLARE PUBLIC METHOD delete(key: string):
         RUN QUERY "DELETE FROM key_value WHERE key = ?" WITH parameters key
 
+    DECLARE PUBLIC METHOD close():
+        Close this.db database connection
+
 SET getDef TO new FuncDef([new GenericTypeDef(GenericType.Func)], new GenericTypeDef(GenericType.String), false, null)
 SET setDef TO new FuncDef([new GenericTypeDef(GenericType.Func)], null, false, null)
 SET deleteDef TO new FuncDef([new GenericTypeDef(GenericType.Func)], null, false, null)
+SET closeDed TO new FuncDef([], null, false, null)
 
 SET openDef TO new FuncDef([new GenericTypeDef(GenericType.String)], new StructDef({
     "get": 0,
     "set": 1,
-    "delete": 2
+    "delete": 2,
+    "close": 3
 }), [
     getDef,
     setDef,
-    deleteDef
+    deleteDef,
+    closeDef
 ])
 DEFINE FUNCTION open(file: string) RETURNS any[]:
     SET db TO open database file with sqlite3 

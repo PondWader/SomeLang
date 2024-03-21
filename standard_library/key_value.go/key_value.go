@@ -21,11 +21,13 @@ var OpenDef = interpreter.FuncDef{
 			"get":    0,
 			"set":    1,
 			"delete": 2,
+			"close":  3,
 		},
 		PropertyDefs: []interpreter.TypeDef{
 			GetDef,
 			SetDef,
 			DeleteDef,
+			CloseDef,
 		},
 		Name: "KeyValueDb",
 	},
@@ -48,7 +50,7 @@ func Open(file string) []any {
 		panic(err)
 	}
 
-	return interop.CreateRuntimeStruct(&KeyValueDb{db}, []string{"Get", "Set", "Delete"})
+	return interop.CreateRuntimeStruct(&KeyValueDb{db}, []string{"Get", "Set", "Delete", "Close"})
 }
 
 var GetDef = interpreter.FuncDef{
@@ -87,4 +89,12 @@ var DeleteDef = interpreter.FuncDef{
 
 func (kv *KeyValueDb) Delete(key string) {
 	kv.db.Exec("DELETE FROM key_value WHERE key = ?", key)
+}
+
+var CloseDef = interpreter.FuncDef{
+	GenericTypeDef: interpreter.GenericTypeDef{Type: interpreter.TypeFunc},
+}
+
+func (kv *KeyValueDb) Close() {
+	kv.db.Close()
 }
