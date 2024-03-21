@@ -17,7 +17,7 @@ DEFINE FUNCTION createRuntimeStruct(structVal: any, methodOrder: string[]) RETUR
                 SET argVals[i - 1] TO reflective value of arg 
             END LOOP
             SET out TO array of returned values of calling method with argVals as arguments 
-            IF length of out > 0 THEN 
+            IF length of out IS GREATER THAN 0 THEN 
                 RETURN out[0]
             END IF
             RETURN null

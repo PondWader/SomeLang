@@ -1,0 +1,368 @@
+DECLARE INTERFACE Node:
+    PUBLIC eval(Environment) RETURNS any
+	PUBLIC references() RETURNS string[]
+
+DECLARE OBJECT And IMPLEMENTS Node:
+    PUBLIC leftSide: Node 
+    PUBLIC rightSide: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        RETURN (this.leftSide.eval(env) AS boolean) IS true AND (this.rightSide.eval(env) AS boolean) IS true 
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN ARRAYS this.leftSide.references() AND this.rightSide.references()
+
+DECLARE OBJECT ArrayAssignment IMPLEMENTS Node:
+    PUBLIC arrayIndex: ArrayIndex 
+    PUBLIC value: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET newVal TO this.value.eval(env)
+        SET array, index TO this.arrayIndex.GetArrayAndValidatedIndex(env)
+        SET array[index] TO newVal 
+        RETURN newVal
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN ARRAYS this.arrayIndex.references() AND this.value.references()
+
+DECLARE OBJECT ArrayIndex IMPLEMENTS Node:
+    PUBLIC array: Node 
+    PUBLIC index: node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET array, index TO this.GetArrayAndValidatedIndex(env)
+        RETURN array[index]
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN ARRAYS this.array.references() AND this.index.references()
+
+    DECLARE PUBLIC METHOD getArrayAndValidatedIndex(env: Environment) RETURNS Array of any:
+        SET index TO this.index.eval(env)
+        SET array TO this.array.eval(env)
+        IF index IS GREATER THAN length of array THEN     
+            CALL env.panic("Index out of array bounds")
+        END IF
+        RETURN array, index 
+
+DECLARE OBJECT ArrayInitialization IMPLEMENTS Node:
+    PUBLIC elements: Node[]
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET array TO array of any WITH length as length of this.elements
+        START LOOP FOR pos, el IN this.elements THEN 
+            IF el IS null THEN 
+                CONTINUE TO NEXT LOOP ITERATION 
+            END IF 
+            SET array[pos] TO el.eval(env)
+        END LOOP
+        RETURN array
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        INITIALIZE refs AS array of string WITH initial length of 0
+        START LOOP FOR el IN this.elements 
+            JOIN el.references TO refs
+        END LOOP
+        RETURN refs
+
+DECLARE OBJECT Assignment IMPLEMENTS Node:
+    PUBLIC identifier: string 
+    PUBLIC newValue: Node 
+    PUBLIC depth: integer
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET newVal TO this.newValue.eval(env)
+        CALL env.setWithDepth(this.identifier, newVal, this.depth)
+        RETURN newVal
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN this.newValue.references() WITH this.identifier APPENDED 
+
+DECLARE OBJECT Block IMPLEMENTS Node:
+    PUBLIC nodes: Node[]
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        CALL env.execute(this.nodes)
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        SET refs TO array of string WITHH initial length of 0 
+        SET LOOP FOR node IN this.nodes 
+            APPEND values of node.references() TO refs
+        END LOOP
+        RETURN refs
+
+DECLARE ENUM ComparisonType (
+    ComparisonEquals,
+	ComparisonGreaterThan,
+	ComparisonLessThan,
+	ComparisonGreaterThanOrEquals,
+	ComparisonLessThanOrEquals
+)
+
+DECLARE OBJECT InequalityComparison IMPLEMENTS Node:
+    PUBLIC type: ComparisonType
+    PUBLIC leftSide: Node 
+    PUBLIC rightSide: Node 
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        IF this.type IS ComparisonType.ComparisonEquals THEN 
+            RETURN this.leftSide.eval(env) IS this.rightSide.eval(env)
+        ELSE IF this.type IS ComparisonType.ComparisonGreaterThan THEN
+            RETURN this.leftSide.eval(env) IS GREATER THAN this.rightSide.eval(env)
+        ELSE IF this.type IS ComparisonType.ComparisonGreaterThanOrEquals THEN
+            RETURN this.leftSide.eval(env) IS GREATER THAN OR EQUAL TO this.rightSide.eval(env)
+        ELSE IF this.type IS ComparisonType.ComparisonLessThan THEN
+            RETURN this.leftSide.eval(env) IS LESS THAN this.rightSide.eval(env)
+        ELSE IF this.type IS ComparisonType.ComparisonLessThanOrEquals THEN
+            RETURN this.leftSide.eval(env) IS LESS THAN OR EQUAL TO this.rightSide.eval(env)
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN ARRAYS this.leftSide.references() AND this.rightSide.references()
+
+DECLARE OBJECT EqualityComparison IMPLEMENTS Node:
+    PUBLIC leftSide: Node 
+    PUBLIC rightSide: Node 
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        RETURN this.leftSide.eval(env) IS this.rightSide.eval(env)
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN ARRAYS this.leftSide.references() AND this.rightSide.references()
+
+DECLARE OBJECT FuncCall IMPLEMENTS Node:
+    PUBLIC args: Node[]
+    PUBLIC function: Node 
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET funcVal TO reflective value of this.function.eval(env)
+        SET args TO array of reflective values WITH length as length of this.args 
+        START LOOP FOR i, arg IN this.args
+            SET args[i] TO reflective value of arg.eval(env)
+        END LOOP
+        SET out TO array of returned values of calling funcVals with args as arguments 
+        IF length of out IS GREATER THAN 0 THEN 
+            RETURN out[0]
+        END IF 
+        RETURN null
+        
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        SET refs TO this.function.references()
+        START LOOP FOR arg IN this.args 
+            APPEND values of arg.references() TO refs
+        END LOOP 
+        RETURN refs
+
+DECLARE OBJECT FuncDeclaration IMPLEMENTS Node:
+    PUBLIC name: string 
+    PUBLIC line: integer 
+    PUBLIC inner: Block 
+    PUBLIC argNames: string[]
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET fn TO anonymous function (args: ...any):
+            SET innerEnv TO env.newChild(new Call(line.name + "()", env.call.file, this.line))
+
+            START LOOP FOR i, arg IN args 
+                CALL innerEnv.set(this.argNames[i], arg)
+            END LOOP
+
+            INITIALIZE returnVal AS any 
+            CALL innerEnv.setReturnCallback(anonymous function (v: any):
+                SET returnVal TO v
+            )
+
+            CALL this.inner.eval(innerEnv)
+
+            CALL env.getCurrentExecutionEnv.profileFunctionCall(innerEnv.getProfileResult)
+            RETURN returnVal
+        IF this.name IS NOT "" THEN 
+            CALL env.set(this.name, fn)
+            CALL env.attachReferences(this.name, this.inner.references())
+        END IF
+        RETURN fn
+        
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN this.inner.references()
+
+DECLARE OBJECT Identifier IMPLEMENTS Node:
+    PUBLIC name: string
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        RETURN env.get(this.name)
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN [this.name]
+
+DECLARE OBJECT IfStatement IMPLEMENTS Node:
+    PUBLIC condition: Node 
+    PUBLIC inner: Block 
+    PUBLIC else: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        IF this.condition.eval(env) IS true THEN 
+            SET childEnv TO env.newChild(new Call("", 0, ""))
+            CALL this.inner.eval(childEnv)
+        ELSE IF this.else IS NOT null THEN 
+            CALL this.else.eval(env)
+        END IF
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        SET refs TO JOIN ARRAYS this.condition.references() AND this.inner.references()
+        IF this.else IS NOT null THEN 
+            APPEND values of this.else.references() to refs 
+        END IF
+        RETURN refs
+
+DECLARE OBJECT Import IMPLEMENTS Node:
+    PUBLIC module: string 
+    PUBLIC identifier: string
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        CALL env.set(this.identifier, env.getBuiltInModule(this.module))
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN [this.identifier]
+
+DECLARE OBJECT LoopArray IMPLEMENTS Node:
+    PUBLIC valIdentifier: string 
+    PUBLIC indexIdentifier: string
+    PUBLIC array: Node 
+    PUBLIC inner: Block
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        START LOOP FOR index, value IN this.array.eval(env) AS array of any 
+            SET childEnv TO this.newChild(new Call("", 0, ""))
+            CALL childEnv.set(this.valIdentifier, value)
+            CALL childEnv.set(this.indexIdentifier, index)
+            CALL this.inner.eval(childEnv)
+        END LOOP
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN this.array.references() AND this.inner.references()
+
+DECLARE OBJECT LoopRange IMPLEMENTS Node:
+    PUBLIC valIdentifier: string 
+    PUBLIC start: Node
+    PUBLIC end: Node 
+    PUBLIC inner: Block
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET startVal TO this.start.eval(env)
+        SET endVal TO this.end.eval(env)
+        START LOOP FOR i = startVal TO i = endVal - 1 
+            SET childEnv TO env.newChild(new Call("", 0, ""))
+            CALL childEnv.set(this.valIdentifier, i)
+            CALL this.inner.eval(childEnv)
+        END LOOP
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN this.array.references() AND this.inner.references()
+
+DECLARE OBJECT LoopArray IMPLEMENTS Node:
+    PUBLIC condition: Node 
+    PUBLIC inner: Block
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        START LOOP WHILE env.isBroken IS false AND this.condition.eval(env) IS true 
+            SES childEnv TO env.newChild(new Call("", 0, ""))
+            CALL this.inner.eval(childEnv)
+        END LOOP
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN this.array.references() AND this.inner.references()
+
+DECLARE OBJECT MapValue IMPLEMENTS Node:
+    PUBLIC map: Node 
+    PUBLIC key: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        RETURH this.map.eval(env)[this.key.eval(env)]
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN this.map.references()
+
+DECLARE ENUM MathsOperationType (
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division
+)
+
+DECLARE OBJECT MathsOperation IMPLEMENTS Node:
+    PUBLIC operation: MathsOperationType
+    PUBLIC leftSide: Node 
+    PUBLIC rightSide: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        SET lhs TO this.leftSide.eval(env)
+        SET rhs TO this.rightSide.eval(env)
+        MATCH this.operation TO 
+            CASE MathsOperationType.Addition:
+                RETURN lhs + rhs
+            CASE MathsOperationType.Subtraction:
+                RETURN lhs - rhs
+            CASE MathsOperationType.Multiplication:
+                RETURN lhs * rhs
+            CASE MathsOperationType.Division:
+                RETURN lhs / rhs
+        RETURN 0
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN this.leftSide.references() AND this.rightSide.references()
+
+DECLARE OBJECT Not IMPLEMENTS Node:
+    PUBLIC value: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        RETURN NOT this.value.eval(env)
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN this.value.references()
+
+DECLARE OBJECT Or IMPLEMENTS Node:
+    PUBLIC leftSide: Node
+    PUBLIC RightSide: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        RETURN NOT this.leftSide.eval(env) OR this.rightSide.eval(env)
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN this.leftSide.references() AND this.rightSide.references()
+
+DECLARE OBJECT Return IMPLEMENTS Node:
+    PUBLIC value: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        CALL env.return(this.value.eval(env))
+        RETURN null
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN JOIN this.leftSide.references() AND this.rightSide.references()
+
+DECLARE OBJECT Value IMPLEMENTS Node:
+    PUBLIC value: any
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        RETURN this.value
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN empty array of strings
+
+DECLARE OBJECT VarDeclaration IMPLEMENTS Node:
+    PUBLIC identifier: string
+    PUBLIC value: Node
+
+    DECLARE PUBLIC METHOD eval(env: Environment) RETURNS any:
+        CALL env.set(this.identifier, this.value.eval(env))
+
+    DECLARE PUBLIC METHOD references() RETURNS string[]:
+        RETURN this.value.references() WITH this.identififer APPENDED
+
+
+

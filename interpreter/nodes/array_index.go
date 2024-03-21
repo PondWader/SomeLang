@@ -28,6 +28,7 @@ func (n *ArrayIndex[E]) GetArrayAndValidatedIndex(env *environment.Environment) 
 	return array, index
 }
 
+// Required since Go generics are being used to ensure a valid index is returned
 func (n *ArrayIndex[T]) GetIndexVal(env *environment.Environment) uint64 {
 	indexVal := reflect.ValueOf(n.Index.Eval(env))
 	indexKind := indexVal.Kind()

@@ -112,7 +112,7 @@ func (p *Parser) ParseValueExpression(value environment.Node, def TypeDef) (envi
 		// Modules are just represented as maps of property keys to values at runtime so a map access node can be used to
 		return p.ParseValueExpression(&nodes.MapValue[string, any]{
 			Map: value,
-			Key: property,
+			Key: &nodes.Value{Value: property},
 		}, propertyDef)
 	}
 

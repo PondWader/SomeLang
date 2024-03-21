@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"main/interpreter"
 	"os"
-	"strings"
 )
 
 var LenDef = interpreter.FuncDef{
@@ -18,10 +17,6 @@ var LenDef = interpreter.FuncDef{
 
 func Len[A any, V string | []A](v V) int64 {
 	return int64(len(v))
-}
-
-func Trim(v string) string {
-	return strings.TrimSpace(v)
 }
 
 var PrintDef = interpreter.FuncDef{

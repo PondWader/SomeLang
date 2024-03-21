@@ -1,0 +1,119 @@
+DECLARE OBJECT ProfileResult:
+    PUBLIC name: string 
+    PUBLIC duration: time duration 
+    subPrograms: ProfileResult[]
+
+    constructor(name: string):
+        SET this.name TO name 
+
+    DECLARE PUBLIC METHOD sortSubPrograms() RETURNS ProfileResult[]:
+        SET subPrograms TO new array of ProfileResult WITH length as length of this.subPrograms 
+        COPY VALUES OF this.subPrograms INTO subPrograms 
+
+        START lOOP FOR i = 0 TO i = length of subPrograms - 1
+            SET value TO subPrograms[i]
+            SET index TO i 
+            START LOOP FOR index > 0 AND value.duration > subPrograms[index - 1].duration 
+                SET subPrograms[index] TO subPrograms[index - 1]
+                SET index TO index - 1
+            END LOOP
+            SET subPrograms[index] TO value
+        END LOOP
+
+        RETURN subPrograms 
+
+    DECLARE PUBLIC METHOD toSortedStringFormat(indentAmount: integer) RETURNS string:
+        SET indent TO ""
+        START LOOP FOR i = 0 TO i = indentAmount - 1
+            SET indent TO indent + "\t"
+        END LOOP
+        SET output TO indent + "- " + this.name + " " + this.duration as string 
+        IF length of this.subPrograms IS GREATER THAN 0 THEN 
+            SET output TO output + ":\n"
+            SET subPrograms TO this.sortSubPrograms()
+            START LOOP FOR subProgram IN subPrograms 
+                SET output TO subProgram.toSortedStringFormat(indentAmount + 1)
+            END LOOP
+        ELSE 
+            SET output TO output + "\n"
+        END IF
+
+        RETURN output 
+
+    DECLARE PUBLIC METHOD ToCsv() RETURNS string:
+        SET csv, _ TO this.generateCsvOutput(1, 0)
+        RETURN csv 
+
+    DECLARE PUBLIC METHOD generateCsvOutput(index: integer, parentIndex: integer) RETURNS string, integer:
+        SET csv TO parentIndex as string + "," + this.name + "," + this.duration in nanoseconds as string 
+        SET currentIndex TO index 
+        START LOOP FOR subProgram IN this.subProgram
+            INITIALIZE output AS string 
+            SET output, currentIndex TO subProgram.generateCsvOutput(currentIndex + 1, index)
+            SET csv TO csv + "\n" + output
+        END LOOP
+        RETURN csv, currentIndex
+
+ DEFINE FUNCTION parseCsv(csv: string) RETURNS ProfileResult, error:
+        SET lines TO csv trimmed of whitespace and split at "\n" 
+        SET results TO array of ProfileResult WITH length as length of lines 
+
+        START LOOP FOR i, line IN lines
+            SET values TO line split at ","
+
+            IF length of values IS NOT 3 THEN 
+                RETURN null, error "profiler CSV data is invalid (too many values on line)"
+            END IF
+            SET parentIndex, err TO values[0] parsed as integer 
+            IF err IS NOT null THEN 
+                RETURN null, error "profiler CSV data is invalid (failed to read parent index integer)"
+            END IF 
+            SET durationNanoseconds, err TO values[2] parsed as integer 
+            IF err IS NOT null THEN 
+                RETURN null, error profiler CSV data is invalid (failed to read duration integer)"
+            END IF 
+
+            SET result TO new ProfileResult(values[1])
+            SET result.duration TO durationNanoseconds AS time in nanoseconds 
+            SET results[i] TO result 
+
+            IF parentIndex IS NOT 0:
+                IF length of results IS LESS THAN OR EQUAL TO parentIndex THEN 
+                    RETURN null, error "profiler CSV data is invalid (parent index out of bounds)"
+                END IF 
+                SET parent TO results[parentIndex - 1]
+                IF parent IS null THEN 
+                    RETURN null, error "profiler CSV data is invalid (could not find parent with index)"
+                END IF
+                APPEND result TO parent.subPrograms
+            END IF
+        END LOOP 
+
+        RETURN results[0], null
+
+DEFINE FUNCTION openProfilerResultsViewer():
+    SET window TO new window with title "Profiler Results Viewer"
+
+    CREATE BUTTON openResultsBtn WITH on click callback as:
+        SET filePath, err TO get file from system file picker 
+        IF err IS NOT null THEN 
+            RETURN 
+        END IF 
+        OPEN file at filePath
+        READ contents of file at filePath into content 
+        CLOSE file at filePath 
+        IF error occured reading file THEN 
+            DISPLAY error pop up "Failed to read file content: " + error that occured
+            RETURN
+        END IF
+        SET result, err TO parseCsv(content)
+        IF err IS NOT null THEN 
+            DISPLAY error pop up "Failed to parse results: " + err 
+            RETURN
+        END IF
+        SET window text to "Viewing " + last element of filePath + "\n" + result.toSortedStringFormat(0)
+
+    SET window size to 1200 x 800 
+    SET window content to openResultsBtn 
+    SET window text to "No file selected."
+    SHOW window 

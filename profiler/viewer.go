@@ -23,6 +23,7 @@ func OpenProfilerResultsViewer() {
 		if err != nil {
 			return
 		}
+		// os.ReadFile automatically opens and closes the file
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			dialog.Message("Failed to read file content: %s", err).Error()

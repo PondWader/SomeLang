@@ -1,0 +1,56 @@
+SET lenDef TO new FuncDef([new GenericTypeDef(GenericType.String)], new GenericTypeDef(GenericType.Int64), false, null)
+DEFINE FUNCTION len(v: any) RETURNS integer:
+    RETURN length of v 
+
+SET printDef TO new FuncDef([new GenericTypeDef(GenericType.Any)], new GenericTypeDef(GenericType.Int64), true, null)
+DEFINE FUNCTION print(args: ...any):
+    DISPLAY any formatted as strings joined by " " 
+
+SET inputDef TO new FuncDef([], false, new GenericTypeDef(GenericType.String))
+DEFINE FUNCTION input() RETURNS string:
+    CREATE new reader for stdin 
+    READ line FROM reader 
+    RETURN line
+
+
+
+
+DECLARE OBJECT KeyValueDb:
+    PRIVATE db: database instance 
+
+    constructor(db: database instance):
+        SET this.db TO db
+
+    DECLARE PUBLIC METHOD get(key: string) RETURNS string:
+        SET row TO result of running "SELECT value FROM key_value WHERE key = ?;" WITH parameter key 
+        SET result TO first value of row 
+        RETURN result
+
+    DECLARE PUBLIC METHOD set(key: string, value: string):
+        RUN QUERY "INSERT INTO key_value VALUES (?, ?) ON CONFLICT DO UPDATE SET value = ?;" WITH parameters key, value, value
+
+    DECLARE PUBLIC METHOD delete(key: string):
+        RUN QUERY "DELETE FROM key_value WHERE key = ?" WITH parameters key
+
+SET getDef TO new FuncDef([new GenericTypeDef(GenericType.Func)], new GenericTypeDef(GenericType.String), false, null)
+SET setDef TO new FuncDef([new GenericTypeDef(GenericType.Func)], null, false, null)
+SET deleteDef TO new FuncDef([new GenericTypeDef(GenericType.Func)], null, false, null)
+
+SET openDef TO new FuncDef([new GenericTypeDef(GenericType.String)], new StructDef({
+    "get": 0,
+    "set": 1,
+    "delete": 2
+}), [
+    getDef,
+    setDef,
+    deleteDef
+])
+DEFINE FUNCTION open(file: string) RETURNS any[]:
+    SET db TO open database file with sqlite3 
+    
+    RUN QUERY `CREATE TABLE IF NOT EXISTS key_value (
+	  key VARCHAR(255) NOT NULL PRIMARY KEY,
+	  value VARCHAR(65536) NOT NULL
+	);`
+
+    RETURN createRuntimeStruct(new KeyValueDb(db), ["get", "set", "delete"])

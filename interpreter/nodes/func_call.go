@@ -10,22 +10,22 @@ type FuncCall struct {
 	Function environment.Node
 }
 
-func (fc *FuncCall) Eval(env *environment.Environment) any {
-	v := reflect.ValueOf(fc.Function.Eval(env))
-	args := make([]reflect.Value, len(fc.Args))
-	for i, arg := range fc.Args {
+func (n *FuncCall) Eval(env *environment.Environment) any {
+	funcVal := reflect.ValueOf(n.Function.Eval(env))
+	args := make([]reflect.Value, len(n.Args))
+	for i, arg := range n.Args {
 		args[i] = reflect.ValueOf(arg.Eval(env))
 	}
-	out := v.Call(args)
+	out := funcVal.Call(args)
 	if len(out) > 0 {
 		return out[0].Interface()
 	}
 	return nil
 }
 
-func (fc *FuncCall) References() []string {
-	refs := fc.Function.References()
-	for _, arg := range fc.Args {
+func (n *FuncCall) References() []string {
+	refs := n.Function.References()
+	for _, arg := range n.Args {
 		refs = append(refs, arg.References()...)
 	}
 	return refs

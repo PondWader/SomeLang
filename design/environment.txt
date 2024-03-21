@@ -1,0 +1,166 @@
+DECLARE OBJECT Call:
+    PUBLIC file: string 
+    PUBLIC line: integer 
+    PUBLIC name: string 
+
+    constructor(file: string, line: integer, name: string):
+        SET this.file TO file 
+        SET this.line TO line 
+        SET this.name TO name
+
+DECLARE OBJECT Environment:
+    PRIVATE	identifiers: map[string]any
+	PRIVATE parent: Environment
+	PRIVATE currentExecutionEnv: pointer to Environment
+	PRIVATE call: Call
+	PRIVATE returnCallback: function (any)
+	PUBLIC isBroken: bool
+	PRIVATE ast: Node[]
+	PRIVATE position: integer
+	PRIVATE attachedRefs: map[string]string[]
+	PRIVATE profile: boolean
+	PRIVATEprofileResult: ProfileResult
+	PRIVATE modules: map[string]map[string]any
+
+    constructor(parent: Environment, call: Call, modules: map[string]map[string]any, profile: boolean):
+        INITIALIZE profileResult AS ProfileResult 
+        IF profile IS true AND call.name IS NOT "" THEN 
+            SET profileResult TO new ProfileResult(call.name)
+        END IF
+
+        INITIALIZE currentExecutionEnv AS pointer to Environment 
+        IF parent IS NOT null THEN 
+            SET currentExecutionEnv TO parent.currentExecutionEnv
+        END IF
+
+        SET this.parent TO parent 
+        SET this.call TO call 
+        SET this.modules TO modules 
+        SET this.profile TO profile 
+        SET this.profileResult TO profileResult 
+        SET his.currentExecutionEnv  TO currentExecutionEnv
+
+    DECLARE PUBLIC METHOD get(name: string) RETURNS any:
+        SET value, ok TO this.identifiers[name]
+        IF ok IS true THEN 
+            RETURN value 
+        END IF 
+        IF this.parent IS NOT null THEN 
+            RETURN this.parent.get(name)
+        END IF 
+        RETURN null 
+
+    DECLARE PUBLIC METHOD set(name: string, value: any):
+        SET this.identifiers[name] TO value 
+
+    DECLARE PUBLIC METHOD setWithDepth(name: string, value: any, depth: integers):
+        SET env TO this
+        START LOOP FOR i = 0 TO i = depth - 1
+            SET env TO env.getParent()
+            IF env IS null THEN 
+                panic "Depth is greater than total available depth"
+            END IF
+        END LOOP
+        CALL env.set(name, value)
+
+    DECLARE PUBLIC METHOD newChild(call: Call) RETURNS Environment:
+        SET child TO new Environment(this, call, this.modules, this.profile)
+        CALL child.setReturnCallback(this.returnCallback) 
+        RETURN child 
+
+    DECLARE METHOD getParent() RETURNS Environment:
+        RETURN this.parent 
+
+    DECLARE PUBLIC METHOD getCallStackOutput() RETURNS string:
+        SET output TO ""
+        IF this.call.name IS NOT "" THEN 
+            SET output TO "\tFile: " + this.call.file + ", Line: " + this.call.line AS string + ", In " + this.call.name
+        END IF
+        IF this.parent IS NOT null THEN 
+            IF output IS NOT "" THEN 
+                SET output TO output + "\n"
+            END IF 
+            SET output TO output + this.parent.getCallStackOut()
+        END IF
+        RETURN output
+
+    DECLARE PUBLIC METHOD execute(ast: Node[]):
+        INITIALIZE prevExecutionEnv AS Environment 
+        IF this.currentExecutionEnv IS NOT null THEN 
+            SET prevExecutionEnv TO value referenced by this.currentExecutionEnv 
+            SET value at this.currentExecutionEnv TO this 
+        ELSE 
+            SET this.currentExecutionEnv TO pointer to this 
+        END IF 
+        SET startTime TO current time 
+
+        SET this.ast TO ast 
+        START LOOP FOR i, node IN ast THEN 
+            IF this.isBroken THEN 
+                RETURN 
+            END IF
+            SET this.position TO i 
+            CALL node.eval(this)
+            CALL this.runGC()
+        END LOOP
+
+        IF this.profileResult IS NOT null THEN 
+            SET this.profileResult.duration TO time since startTime
+        END IF
+        IF prevExecutionEnv IS NOT null THEN 
+            SET value of this.currentExecutionEnv TO prevExecutionEnv
+        END IF 
+
+    DECLARE PUBLIC METHOD setReturnCallback(cb: function(any)):
+        SET this.returnCallBack TO anonymous function (v: any):
+            SET this.isBroken TO true 
+            CALL cb(v)
+
+    DECLARE PUBLIC METHOD return(v: any):
+        CALL this.returnCallback(v)
+
+    DECLARE PUBLIC METHOD profileFunctionCall(result: ProfileResult):
+        IF this.profileResult IS NOT null THEN 
+            APPEND result TO this.profileResult.subPrograms 
+        ELSE 
+            CALL this.parent.profileFunctionCall(result)
+        END IF 
+
+    DECLARE PUBLIC METHOD getProfileResult() RETURNS ProfileResult:
+        RETURN this.profileResult 
+
+    DECLARE PUBLIC METHOD getCurrentExecutionEnv() RETURNS Environment:
+        RETURN value referenced by this.currentExecutionEnv 
+
+    DECLARE PUBLIC METHOD attachReferences(name: string, refs: string[]):
+        SET this.attachedRefs[name] TO refs 
+
+    DECLARE PUBLIC METHOD panic(msg: ...any):
+        DISPLAY "panic: " + msg formatted as all strings joined by " "
+        DISPLAY this.getCallStackOutput()
+        EXIT PROGRAM WITH CODE 1
+
+    DECLARE PUBLIC METHOD GetBuiltInModule(module: string) RETURNS map[string]any:
+        RETURN this.modules[module]
+
+    DEClARE PUBLIC METHOD runGC():
+        SET inUse TO map[string] with empty value WITH size of length of this.identifiers 
+        START LOOP FOR i = this.position + 1 TO i = length of this.ast - 1
+            START LOOP FOR ref IN this.ast[i].references()
+                SET inUse[ref] TO empty value 
+                SET attachedRefs, ok TO this.attachedRefs[ref]
+                IF ok IS true THEN 
+                    START LOOP FOR ref IN attachedRefs 
+                        SET inUse[ref] TO empty value 
+                    END LOOP
+                END IF
+            END LOOP
+        END LOOP
+
+        START LOOP FOR ident IN this.identifiers
+            IF inUse[ident] IS set THEN 
+                DELETE this.identifiers[ident]
+                DELETE this.attachedRefs[ident]
+            END IF
+        END LOOP
+

@@ -7,10 +7,10 @@ type Or struct {
 	RightSide environment.Node
 }
 
-func (o *Or) Eval(env *environment.Environment) any {
-	return o.LeftSide.Eval(env).(bool) || o.RightSide.Eval(env).(bool)
+func (n *Or) Eval(env *environment.Environment) any {
+	return n.LeftSide.Eval(env).(bool) || n.RightSide.Eval(env).(bool)
 }
 
-func (o *Or) References() []string {
-	return append(o.LeftSide.References(), o.RightSide.References()...)
+func (n *Or) References() []string {
+	return append(n.LeftSide.References(), n.RightSide.References()...)
 }

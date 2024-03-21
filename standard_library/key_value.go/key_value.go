@@ -60,7 +60,7 @@ var GetDef = interpreter.FuncDef{
 }
 
 func (kv *KeyValueDb) Get(key string) string {
-	row := kv.db.QueryRow("SELECT value FROM key_value WHERE key = ?", key)
+	row := kv.db.QueryRow("SELECT value FROM key_value WHERE key = ?;", key)
 	var result string
 	row.Scan(&result)
 	return result
@@ -75,7 +75,7 @@ var SetDef = interpreter.FuncDef{
 }
 
 func (kv *KeyValueDb) Set(key string, value string) {
-	kv.db.Exec(`INSERT INTO key_value VALUES (?, ?) ON CONFLICT DO UPDATE SET value = ?;`, key, value, value)
+	kv.db.Exec("INSERT INTO key_value VALUES (?, ?) ON CONFLICT DO UPDATE SET value = ?;", key, value, value)
 }
 
 var DeleteDef = interpreter.FuncDef{

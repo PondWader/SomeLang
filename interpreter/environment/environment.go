@@ -40,7 +40,8 @@ func New(parent *Environment, call Call, modules map[string]map[string]any, prof
 	var profileResult *profiler.ProfileResult
 	if profile && call.Name != "" {
 		profileResult = &profiler.ProfileResult{
-			Name:        call.Name,
+			Name: call.Name,
+			// Have to initialize the result array
 			SubPrograms: make([]*profiler.ProfileResult, 0),
 		}
 	}

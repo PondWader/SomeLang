@@ -19,9 +19,9 @@ type MathsOperation[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | u
 	RightSide environment.Node
 }
 
-func (mo *MathsOperation[T]) Eval(env *environment.Environment) any {
-	lhs, rhs := mo.LeftSide.Eval(env).(T), mo.RightSide.Eval(env).(T)
-	switch mo.Operation {
+func (n *MathsOperation[T]) Eval(env *environment.Environment) any {
+	lhs, rhs := n.LeftSide.Eval(env).(T), n.RightSide.Eval(env).(T)
+	switch n.Operation {
 	case MathsAddition:
 		return lhs + rhs
 	case MathsSubtraction:
@@ -34,6 +34,6 @@ func (mo *MathsOperation[T]) Eval(env *environment.Environment) any {
 	return 0
 }
 
-func (mo *MathsOperation[T]) References() []string {
-	return append(mo.LeftSide.References(), mo.RightSide.References()...)
+func (n *MathsOperation[T]) References() []string {
+	return append(n.LeftSide.References(), n.RightSide.References()...)
 }

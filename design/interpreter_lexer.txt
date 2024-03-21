@@ -80,7 +80,7 @@ DECLARE OBJECT Lexer:
 
     DEFINE PUBLIC METHOD next() RETURNS Token, error:
         SET currentStr TO ""
-        START LOOP WHILE this.cursor < length of this.content:
+        START LOOP WHILE this.cursor IS LESS THAN length of this.content:
             SET char TO character AT this.cursor OF this.content
             SET this.cursor TO this.cursor + 1
 
@@ -106,7 +106,7 @@ DECLARE OBJECT Lexer:
 
 			SET currentStr TO currentStr + char
 			SET endOfToken TO false
-			IF this.cursor >= len(this.content) THEN
+			IF this.cursor IS GREATER THAN OR EQUAL TO len(this.content) THEN
 				SET endOfToken TO true
 			ELSE
 				SET nextChar TO character AT this.cursor OF this.content
@@ -153,7 +153,7 @@ DECLARE OBJECT Lexer:
 	DEFINE PRIVATE METHOD readString() RETURNS string, error:
 		SET currentStr TO ""
 		SET escapedChar TO false
-		START LOOP WHILE this.cursor < length of this.content:
+		START LOOP WHILE this.cursor IS LESS THAN length of this.content:
 			SET char TO character AT this.cursor OF this.content
 			SET this.cursor TO this.cursor + 1
 
@@ -342,7 +342,7 @@ DECLARE FUNCTION getLiteralTokenType(literal: string) RETURNS TokenType {
 			return TokenTypeBool
 
 	START LOOP FOR char IN literal:
-		if char < 48 OR char > 57 THEN
+		if char IS LESS THAN 48 OR char IS GREATER THAN 57 THEN
 			RETURN TokenType.Identifier
 	END LOOP
 

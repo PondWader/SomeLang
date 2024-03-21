@@ -27,6 +27,7 @@ func (n *LoopRange) References() []string {
 	return append(n.Start.References(), append(n.End.References(), n.Inner.References()...)...)
 }
 
+// Required to transform the node into int64 since go requires strong typing so can't use the evaluated node value as any
 func getLoopRangeVal(node environment.Node, env *environment.Environment) int64 {
 	val := reflect.ValueOf(node.Eval(env))
 	kind := val.Kind()

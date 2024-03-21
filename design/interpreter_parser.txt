@@ -167,10 +167,10 @@ DECLARE OBJECT Parser:
                     END IF
 
                     INITIALIZE argDef WITH TYPE TypeDef 
-                    IF i >= length of args AND funcDef.Variadic IS true THEN 
+                    IF i IS GREATER THAN OR EQUAL TO length of args AND funcDef.Variadic IS true THEN 
                         INCREASE size of args by 1 
                         SET argDef TO funcDef.args[length of funcDef.args - 1]
-                    ELSE IF i >= length of args THEN 
+                    ELSE IF i IS GREATER THAN OR EQUAL TO length of args THEN 
                         CALL this.throwTypeError("Too many arguments passed to function.")
                     ELSE 
                         SET argDef TO funcDef.args[i]
@@ -189,13 +189,13 @@ DECLARE OBJECT Parser:
                     IF token.type IS TokenType.RightBracket THEN 
                         BREAK LOOP 
                     ELSE IF token.type IS TokenType.NewLine THEN 
-                        IF i < length of funcDef.args THEN 
+                        IF i IS LESS THAN length of funcDef.args THEN 
 					        CALL this.throwTypeError("Expected comma after function argument.")
                         END IF
                     END IF
                 END LOOP
 
-                IF i + 1 < length of funcDef.args THEN
+                IF i + 1 IS LESS THAN length of funcDef.args THEN
                     CALL this.throwTypeError("Not enough arguments passed to function.")
                 END IF
 
@@ -237,7 +237,7 @@ DECLARE OBJECT Parser:
 			        this.throwTypeError("Property ", property, " does not exist on module ", (value AS Identifier).Name, ".")
                 END IF
 
-                RETURN this.parseValueExpression(new MapValue(value, property))
+                RETURN this.parseValueExpression(new MapValue(value, new Value(property)))
 
         CALL this.lexer.unread(token)
         RETURN value, def 
@@ -263,16 +263,16 @@ DECLARE OBJECT Parser:
                 RETURN value, def
             END IF
 
-            INITIALIZE operation AS MathsOperation
+            INITIALIZE operation AS MathsOperationType
             MATCH operationType TO
                 CASE TokenType.Asterisk:
-                    SET operation TO MathsOperation.Multiplication 
+                    SET operation TO MathsOperationType.Multiplication 
                 case TokenType.ForwardSlash: 
-                    SET operation TO MathsOperation.Division 
+                    SET operation TO MathsOperationType.Division 
                 case TokenType.Plus: 
-                    SET operation TO MathsOperation.Addition 
+                    SET operation TO MathsOperationType.Addition 
                 case TokenType.Dash:
-                    SET operation TO MathsOperation.Subtraction 
+                    SET operation TO MathsOperationType.Subtraction 
                 default:
                     panic "Non-operation token passed as operationType token"
 
@@ -487,7 +487,7 @@ DECLARE OBJECT Parser:
 			        CALL this.throwTypeError("Cannot get negative value of non-number value.")
                 END IF
                 RETURN new MathsOperation(
-                    Maths.Subtraction,
+                    MathsOperationType.Subtraction,
                     new Value(convertInt64ToTypeDef(0, def.getGenericType())),
                     val
                 ), def
@@ -675,7 +675,7 @@ DECLARE OBJECT Parser:
                 SET size TO -1
                 IF token.type IS TokenType.Number THEN 
                     SET size TO token.literal AS integer 
-                    IF size < 0 THEN 
+                    IF size IS LESS THAN 0 THEN 
 				        CALL this.throwSyntaxError("Size of array must be greater than or equal to 0")
                     END IF
                     CALL this.expectToken(TokenType.RightSquareBracket)

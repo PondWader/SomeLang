@@ -1,7 +1,6 @@
 package nodes
 
 import (
-	"fmt"
 	"main/interpreter/environment"
 )
 
@@ -31,7 +30,6 @@ func (n *FuncDeclaration) Eval(env *environment.Environment) any {
 
 		n.Inner.Eval(innerEnv)
 
-		fmt.Println("Executed", n.Name)
 		env.GetCurrentExecutionEnv().ProfileFunctionCall(innerEnv.GetProfileResult())
 		return returnVal
 	}
