@@ -135,7 +135,6 @@ DECLARE OBJECT ModuleDef EXTENDS GenericTypeDef:
 
 DECLARE OBJECT TypeEnvironment:
 	PUBLIC identifiers: map[string]TypeDef
-	PUBLIC customTypes: map[string]TypeDef
 	PUBLIC returnType: TypeDef
 	PUBLIC returned: boolean
 	PUBLIC parent: TypeEnvironment

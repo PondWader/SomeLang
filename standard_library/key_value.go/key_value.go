@@ -45,7 +45,7 @@ func Open(file string) []any {
 
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS key_value (
 	  key VARCHAR(255) NOT NULL PRIMARY KEY,
-	  value VARCHAR(65536) NOT NULL
+	  value VARCHAR(65535) NOT NULL
 	);`); err != nil {
 		panic(err)
 	}

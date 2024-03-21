@@ -2,7 +2,6 @@ package interpreter
 
 type TypeEnvironment struct {
 	identifiers map[string]TypeDef
-	customTypes map[string]TypeDef
 	returnType  TypeDef
 	returned    bool
 	parent      *TypeEnvironment
@@ -10,7 +9,7 @@ type TypeEnvironment struct {
 }
 
 func NewTypeEnvironment(parent *TypeEnvironment, returnType TypeDef, depth int) *TypeEnvironment {
-	return &TypeEnvironment{make(map[string]TypeDef), make(map[string]TypeDef), returnType, false, parent, depth}
+	return &TypeEnvironment{make(map[string]TypeDef), returnType, false, parent, depth}
 }
 
 func (e *TypeEnvironment) NewChild(returnType TypeDef) *TypeEnvironment {

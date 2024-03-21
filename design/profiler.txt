@@ -54,7 +54,7 @@ DECLARE OBJECT ProfileResult:
         END LOOP
         RETURN csv, currentIndex
 
- DEFINE FUNCTION parseCsv(csv: string) RETURNS ProfileResult, error:
+DEFINE FUNCTION parseCsv(csv: string) RETURNS ProfileResult, error:
         SET lines TO csv trimmed of whitespace and split at "\n" 
         SET results TO array of ProfileResult WITH length as length of lines 
 

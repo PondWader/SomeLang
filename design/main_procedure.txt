@@ -51,4 +51,3 @@ IF value of "profile" flag IS true
     CLOSE file AT "profiler_results.csv"
     DISPLAY "Saved profiler results to profiler_results.csv"
 END IF
-
