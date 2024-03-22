@@ -7,19 +7,6 @@ import (
 	"os"
 )
 
-// Definition for use by parser for type checking of length function
-var LenDef = interpreter.FuncDef{
-	GenericTypeDef: interpreter.GenericTypeDef{Type: interpreter.TypeFunc},
-	Args: []interpreter.TypeDef{
-		interpreter.GenericTypeDef{Type: interpreter.TypeString},
-	},
-	ReturnType: interpreter.GenericTypeDef{Type: interpreter.TypeInt64},
-}
-
-func Len[A any, V string | []A](v V) int64 {
-	return int64(len(v))
-}
-
 // Definition for use by parser for type checking of print function
 var PrintDef = interpreter.FuncDef{
 	GenericTypeDef: interpreter.GenericTypeDef{Type: interpreter.TypeFunc},
