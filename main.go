@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"main/interpreter"
@@ -36,6 +37,10 @@ func main() {
 	// os.ReadFile function automatically opens and closes file
 	content, err := os.ReadFile(*entryPoint)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Println("The entry point file provided does not exist!")
+			return
+		}
 		fmt.Println("Error reading entry point file:", err)
 		return
 	}
