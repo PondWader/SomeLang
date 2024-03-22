@@ -2,6 +2,7 @@ package nodes
 
 import "main/interpreter/environment"
 
+// Node that gets a value from a map using it's key
 type MapValue[KeyType comparable, ValueType any] struct {
 	Map environment.Node
 	Key environment.Node

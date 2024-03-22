@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// Node that calls a function with arguments
 type FuncCall struct {
 	Args     []environment.Node
 	Function environment.Node

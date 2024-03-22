@@ -99,6 +99,7 @@ func (l *Lexer) Next() (Token, error) {
 			continue
 		}
 
+		// Check character is a valid token
 		if token, err := getCharTokenType(char); err == nil {
 			if token == TokenNewLine {
 				l.currentLine++
@@ -110,6 +111,7 @@ func (l *Lexer) Next() (Token, error) {
 			}, nil
 		}
 
+		// If the character is a quotation mark, it's the beginning of a string
 		if char == "\"" {
 			strContent, err := l.readString()
 			if err != nil {
@@ -128,6 +130,7 @@ func (l *Lexer) Next() (Token, error) {
 			endOfToken = true
 		} else {
 			nextChar := l.content[l.cursor : l.cursor+1]
+			// Check if the next character terminates a token
 			if nextChar == "" || nextChar == " " || nextChar == "\n" || nextChar == "\r" || nextChar == "\t" || nextChar == "\"" {
 				endOfToken = true
 			} else if _, err := getCharTokenType(nextChar); err == nil {
@@ -151,6 +154,7 @@ func (l *Lexer) Next() (Token, error) {
 	}, nil
 }
 
+// Returns the contents of the next token without progressing the cursor
 func (l *Lexer) Peek() (Token, error) {
 	originalPos := l.cursor
 	originalLine := l.currentLine
@@ -251,6 +255,7 @@ func (l *Lexer) SavePos() LexerPos {
 	return LexerPos{l.cursor, l.currentLine, l}
 }
 
+// Stores the position of a lexer
 type LexerPos struct {
 	Cursor int
 	Line   int

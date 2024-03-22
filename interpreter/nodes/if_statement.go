@@ -2,6 +2,7 @@ package nodes
 
 import "main/interpreter/environment"
 
+// Node that runs an inner block if Condition is true, if Else is set that will be run if Condition is not true
 type IfStatement struct {
 	Condition environment.Node
 	Inner     *Block

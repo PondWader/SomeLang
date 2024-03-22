@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that represents a literal value
 type Value struct {
 	Value any
 }

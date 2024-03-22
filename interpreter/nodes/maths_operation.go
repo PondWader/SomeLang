@@ -13,6 +13,7 @@ const (
 	MathsDivision
 )
 
+// Node that performs a maths operation on a value
 type MathsOperation[T int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64] struct {
 	Operation MathsOperationType
 	LeftSide  environment.Node

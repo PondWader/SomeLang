@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that assigns a value to an array index
 type ArrayAssignment[Element any] struct {
 	ArrayIndex *ArrayIndex[Element]
 	Value      environment.Node

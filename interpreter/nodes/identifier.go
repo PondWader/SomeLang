@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that gets a value by it's identifier
 type Identifier struct {
 	Name string
 }

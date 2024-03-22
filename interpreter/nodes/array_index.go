@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// Node that accesses a value at an array index
 type ArrayIndex[Element any] struct {
 	Array environment.Node
 	Index environment.Node

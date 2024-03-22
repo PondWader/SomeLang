@@ -2,6 +2,7 @@ package nodes
 
 import "main/interpreter/environment"
 
+// Node that returns a value in the current environment
 type Return struct {
 	Value environment.Node
 }

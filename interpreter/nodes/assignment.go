@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that assigns a value to an identifier in the current environment or in the parent environment with a certain depth
 type Assignment struct {
 	Identifier string
 	NewValue   environment.Node
