@@ -133,12 +133,13 @@ func (p *Parser) ParseMathsOperations(value environment.Node, def TypeDef, onlyM
 	}
 
 	for {
+		if onlyMultiplication && operationType != TokenAsterisk && operationType != TokenForwardSlash {
+			p.lexer.Unread(token)
+			return value, def
+		}
 		rhsVal, rhsDef := p.ParsePartialValue(def)
 		if !rhsDef.Equals(def) {
 			p.ThrowTypeError("Mathematical operations must be performed on values of the same type.")
-		}
-		if onlyMultiplication && operationType != TokenAsterisk && operationType != TokenForwardSlash {
-			return value, def
 		}
 
 		var operation nodes.MathsOperationType
