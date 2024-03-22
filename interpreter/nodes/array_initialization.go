@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that initializes a new array
 type ArrayInitialization[T any] struct {
 	Elements []environment.Node
 }

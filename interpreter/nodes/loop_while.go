@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that loops through Inner until Condition returns false when evaluated
 type LoopWhile struct {
 	Condition environment.Node
 	Inner     *Block

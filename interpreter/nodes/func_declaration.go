@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that declares a function in the current environment
 type FuncDeclaration struct {
 	Name     string
 	Line     int

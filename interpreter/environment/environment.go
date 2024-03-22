@@ -30,6 +30,7 @@ type Environment struct {
 	modules map[string]map[string]any
 }
 
+// A Call instance represents a function call in the call stack for stack trace displays
 type Call struct {
 	File string
 	Line int
@@ -98,6 +99,7 @@ func (e *Environment) GetParent() *Environment {
 	return e.parent
 }
 
+// Generates the call stack of the up to the current call
 func (e *Environment) GetCallStackOutput() string {
 	output := ""
 	if e.Call.Name != "" {
@@ -114,17 +116,20 @@ func (e *Environment) GetCallStackOutput() string {
 
 func (e *Environment) Execute(ast []Node) {
 	var prevExecutionEnv *Environment
+	// Update the current execution env
 	if e.currentExecutionEnv != nil {
 		prevExecutionEnv = *e.currentExecutionEnv
 		*e.currentExecutionEnv = e
 	} else {
 		e.currentExecutionEnv = &e
 	}
+	// Store start time for profiling
 	startTime := time.Now()
 
 	e.ast = ast
 	for i, node := range ast {
 		if e.IsBroken {
+			// If IsBroken is true, the environment should stop executing since a return statement has been reached
 			return
 		}
 		e.position = i
@@ -133,13 +138,16 @@ func (e *Environment) Execute(ast []Node) {
 	}
 
 	if e.profileResult != nil {
+		// Measure the execution time
 		e.profileResult.Duration = time.Since(startTime)
 	}
 	if prevExecutionEnv != nil {
+		// Reset the previous executioon env
 		*e.currentExecutionEnv = prevExecutionEnv
 	}
 }
 
+// Sets a function that will be called when the environment returns
 func (e *Environment) SetReturnCallback(cb func(v any)) {
 	e.returnCallback = func(v any) {
 		e.IsBroken = true
@@ -151,6 +159,7 @@ func (e *Environment) Return(v any) {
 	e.returnCallback(v)
 }
 
+// Saves a profile result for a function call within the current environment
 func (e *Environment) ProfileFunctionCall(result *profiler.ProfileResult) {
 	if e.profileResult != nil {
 		e.profileResult.SubPrograms = append(e.profileResult.SubPrograms, result)
@@ -174,6 +183,7 @@ func (e *Environment) AttachReferences(name string, refs []string) {
 	e.attachedRefs[name] = refs
 }
 
+// Performs a runtime panic, throwing an error and exiting the program
 func (e *Environment) Panic(msg ...any) {
 	fmt.Println(append([]any{"panic:"}, msg...)...)
 	fmt.Println(e.GetCallStackOutput())

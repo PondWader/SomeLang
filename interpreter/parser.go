@@ -128,6 +128,7 @@ func (p *Parser) ParseNext(inBlock bool) environment.Node {
 	return nil
 }
 
+// Parses a code block enclosed in {} into it's own AST
 func (p *Parser) ParseBlock(scopedVariables map[string]TypeDef, returnType TypeDef) *nodes.Block {
 	ast := make([]environment.Node, 0)
 	p.ExpectToken(TokenLeftBrace)
@@ -164,6 +165,7 @@ func (p *Parser) ExpectToken(tokenType ...TokenType) Token {
 	return Token{}
 }
 
+// Displays a formatted syntax error message
 func (p *Parser) ThrowSyntaxError(msg ...any) {
 	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Syntax error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
 	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))
@@ -171,6 +173,7 @@ func (p *Parser) ThrowSyntaxError(msg ...any) {
 	os.Exit(1)
 }
 
+// Displays a formatted type error message
 func (p *Parser) ThrowTypeError(msg ...any) {
 	fmt.Println(aurora.Red("[ERROR]"), aurora.Gray(5, "Type error at line "+fmt.Sprint(p.lexer.GetCurrentLine())+":"))
 	fmt.Println(" ", aurora.Gray(3, ">"), aurora.Red(fmt.Sprint(msg...)))

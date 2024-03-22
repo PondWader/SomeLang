@@ -2,6 +2,7 @@ package nodes
 
 import "main/interpreter/environment"
 
+// Node that returns opposite of a boolean value
 type Not struct {
 	Value environment.Node
 }

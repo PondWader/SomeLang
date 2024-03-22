@@ -2,6 +2,7 @@ package nodes
 
 import "main/interpreter/environment"
 
+// Node that imports a module in to the current environment
 type Import struct {
 	Module     string
 	Identifier string

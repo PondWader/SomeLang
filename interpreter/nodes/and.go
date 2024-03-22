@@ -2,6 +2,7 @@ package nodes
 
 import "main/interpreter/environment"
 
+// Node that returns true if LeftSide and RightSide are both true
 type And struct {
 	LeftSide  environment.Node
 	RightSide environment.Node

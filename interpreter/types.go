@@ -28,9 +28,13 @@ const (
 )
 
 type TypeDef interface {
+	// Gets the generic type that the type definition represents
 	GetGenericType() GenericType
+	// Checks whether the definition is equal to another definition
 	Equals(TypeDef) bool
+	// Checks whether the definition is for any integer value of any bit size
 	IsInteger() bool
+	// Checks whether the definition is for any integer or float value
 	IsNumber() bool
 }
 

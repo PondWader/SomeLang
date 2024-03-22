@@ -5,6 +5,7 @@ import (
 	"reflect"
 )
 
+// Node that iterates through a range from start to end and runs inner on each iteration
 type LoopRange struct {
 	ValIdentifier string
 	Start         environment.Node

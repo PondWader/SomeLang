@@ -7,6 +7,7 @@ import (
 	"os"
 )
 
+// Definition for use by parser for type checking of length function
 var LenDef = interpreter.FuncDef{
 	GenericTypeDef: interpreter.GenericTypeDef{Type: interpreter.TypeFunc},
 	Args: []interpreter.TypeDef{
@@ -19,6 +20,7 @@ func Len[A any, V string | []A](v V) int64 {
 	return int64(len(v))
 }
 
+// Definition for use by parser for type checking of print function
 var PrintDef = interpreter.FuncDef{
 	GenericTypeDef: interpreter.GenericTypeDef{Type: interpreter.TypeFunc},
 	Args: []interpreter.TypeDef{
@@ -32,6 +34,7 @@ func Print(args ...any) {
 	fmt.Println(args...)
 }
 
+// Definition for use by parser for type checking of input function
 var InputDef = interpreter.FuncDef{
 	GenericTypeDef: interpreter.GenericTypeDef{Type: interpreter.TypeFunc},
 	Args:           make([]interpreter.TypeDef, 0),

@@ -2,6 +2,7 @@ package nodes
 
 import "main/interpreter/environment"
 
+// Node that represents a nested code block within the program such as a function body
 type Block struct {
 	Nodes []environment.Node
 }

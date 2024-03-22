@@ -4,6 +4,7 @@ import (
 	"main/interpreter/environment"
 )
 
+// Node that iterates through an array, and runs inner for each iteration
 type LoopArray[Element any] struct {
 	ValIdentifier   string
 	IndexIdentifier string
