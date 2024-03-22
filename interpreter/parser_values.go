@@ -157,7 +157,7 @@ func (p *Parser) ParseMathsOperations(value environment.Node, def TypeDef, onlyM
 		}
 
 		// Read the next operation
-		token := p.lexer.NextOrExit()
+		token = p.lexer.NextOrExit()
 		if token.Type == TokenAsterisk || token.Type == TokenForwardSlash {
 			p.lexer.Unread(token)
 			rhsVal, _ = p.ParseMathsOperations(rhsVal, def, true)
